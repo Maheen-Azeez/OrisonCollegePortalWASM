@@ -1,0 +1,775 @@
+﻿@page "/Discount"
+
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Data;
+@using Microsoft.Extensions.Localization
+@using System.Globalization;
+@using System.Web;
+@inject IJSRuntime JsRuntime;
+@inject HttpClient Http
+@inject ToastService ToastService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IDiscountManager _IDiscountManager
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+@if (AllowOpen == true)
+{
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-9">
+                <SfButton @onclick="@New_Click" Content="@Localizer[@ButtonLabel]" IconCss="Icon add" CssClass="e-btn" Disabled="@btnAddenabled" />
+                <SfButton @onclick="@Save_Click" Content=@Localizer["Save"] IconCss="Icon save" CssClass="e-btn" Disabled="@btnSaveenable" />
+                <SfButton @onclick="@Edit_Click" Content="@Localizer[@EditButtonLabel]" IconCss="Icon edit" CssClass="e-btn" />
+
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true" AutoHideDelay="10000">
+                    @Success
+                </BlazorStrap.BSAlert>
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDanger" AutoHide="true" AutoHideDelay="10000">
+                    @Failed
+                </BlazorStrap.BSAlert>
+            </div>
+            <div class="col-md-3">
+                <div class="header-div-style">
+                    <label class="header-label">@Localizer["DISCOUNT  SCHEDULE"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-4">
+                <label class="label">@Localizer["Schedule"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DiscountTrackdt.Schedule" Enabled="@de1"></SfTextBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Discount On"]</label>
+                <SfComboBox TValue="string" TItem="string" DataSource="@DiscountOn" @bind-Value="@DiscountTrackdt.NetDiscount" PopupHeight="230px" Enabled="@de5" Placeholder="">
+                    <ComboBoxFieldSettings Text="NetDiscount" Value="NetDiscount"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Child"]</label>
+                <SfComboBox TValue="string" TItem="string" DataSource="@Child" @bind-Value="@DiscountTrackdt.Child" PopupHeight="230px" Enabled="@de2" Placeholder="">
+                    <ComboBoxFieldSettings Text="Child" Value="Child"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <label class="label">@Localizer["Description"]</label>
+                <SfTextBox Multiline="true" CssClass="textbox" @bind-Value="@DiscountTrackdt.Description" Enabled="@de3"></SfTextBox>
+            </div>
+            <div class="col-md-6">
+                <label class="label">@Localizer["Post To"]</label>
+                <div class="w-100" style="display: flex;">
+                    <SfTextBox @bind-Value="@DiscountTrackdt.AccountCode" CssClass="textbox" Width="20%" Enabled="false"></SfTextBox>
+                    <SfComboBox TValue="string" TItem="Accounts" @bind-Value="@DiscountTrackdt.AccountName" DataSource="@PostTo" @ref="SfPostToObj" CssClass="e-multi-column"
+                                AllowFiltering="true" PopupHeight="200" PopupWidth="600"
+                                EnableVirtualization="true" AllowCustom="true" Enabled="EPostTo">
+                        <ComboBoxTemplates TItem="Accounts">
+                            <HeaderTemplate>
+                                @*<table class="comboTable"><tr><th>Code</th><th>Name</th><th>ID</th><th>AccCategory</th></tr></table>*@
+                                <div class="row">
+                                    <div class="col-md-3 " style="width:100px">@Localizer["Code"]</div>
+                                    <div class="col-md-4 " style="width:450px">@Localizer["Name"]</div>
+                                    <div class="col-md-2 " style="width:450px">@Localizer["ID"]</div>
+                                    <div class="col-md-3 " style="width:180px">@Localizer["AccCategory"]</div>
+                                </div>
+                            </HeaderTemplate>
+                            <ItemTemplate Context="FeeMasterContext">
+                                @*<table class="comboTable"><tbody><tr><td>@((FeeMasterContext as Accounts).AccountCode)</td><td>@((FeeMasterContext as Accounts).AccountName)</td><td>@((FeeMasterContext as Accounts).Id)</td><td>@((FeeMasterContext as Accounts).AccCategory)</td></tr> </tbody></table>*@
+                                <div class="row">
+                                    <div class="col-md-3 column-header" style="width:100px">@((FeeMasterContext as Accounts).AccountCode)</div>
+                                    <div class="col-md-4 column-header" style="width:450px">
+                                        <div class="item-name-wrapper" title="@((FeeMasterContext as Accounts).AccountName)">@((FeeMasterContext as Accounts).AccountName)</div>
+                                    </div>
+                                    <div class="col-md-2 column-header" style="width:180px">
+                                        @((FeeMasterContext as Accounts).Id)
+                                    </div>
+                                    <div class="col-md-3 column-header" style="width:180px">
+                                        @((FeeMasterContext as Accounts).AccCategory)
+                                    </div>
+                                </div>
+                            </ItemTemplate>
+                        </ComboBoxTemplates>
+                        <ComboBoxFieldSettings Text="AccountCode" Value="AccountCode"></ComboBoxFieldSettings>
+                        <ComboBoxFieldSettings Text="AccountName" Value="AccountName"></ComboBoxFieldSettings>
+                        <ComboBoxEvents TValue="string" TItem="Accounts" ValueChange="@SelectedNameChanged" Filtering="@OnPostToFiltering"></ComboBoxEvents>
+                    </SfComboBox>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <label class="label">@Localizer["Start Date"]</label>
+                <SfDatePicker AllowEdit="false" TValue="DateTime?" ShowClearButton="true" Format="dd/MM/yyyy" @bind-Value="@DiscountTrackdt.StartDate">
+                </SfDatePicker>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Discount Type"]</label>
+                <SfComboBox TValue="string" TItem="string" DataSource="@DiscountType" @bind-Value="@DiscountTrackdt.DiscountType" PopupHeight="230px" Enabled="@de5" Placeholder="">
+                    <ComboBoxFieldSettings Text="DiscountType" Value="DiscountType"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Discount"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DiscountTrackdt.Discount" Enabled="@de6"></SfTextBox>
+            </div>
+        </div>
+    </div>
+    <div class="box-card-shadow">
+        <div class="table-responsive" style="position: relative; min-width: 300px ">
+            <SfGrid DataSource="@DiscountTrackList" ID="DiscountTrackLists" @ref="DiscountTrackLists"
+                    GridLines="GridLine.Both"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    AllowExcelExport="true"
+                    AllowPdfExport="true"
+                    Width="100%"
+                    ShowColumnChooser="true"
+                    AllowResizing="true"
+                    AllowSorting="true"
+                    EnableAltRow="true"
+                    RowHeight="25">
+                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                <GridPageSettings PageSize="50"></GridPageSettings>
+                <GridEditSettings AllowDeleting="true" />
+                <GridSelectionSettings Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+                <GridColumns>
+                    <GridColumn HeaderText=@Localizer["SlNo"] Width="50" Context="context1">
+                        <Template>
+                            @{
+                                var con = (context1 as SchoolDiscountSchedule);
+                                var Index = GetRowCounter(con!.Id);
+                            }
+                            <span>@(Index.Result)</span>
+                        </Template>
+                    </GridColumn>
+
+                    <GridColumn Field=@nameof(SchoolDiscountSchedule.Id) HeaderText=@Localizer["id"] Width="120" Visible="false" IsPrimaryKey="true"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolDiscountSchedule.Schedule) HeaderText=@Localizer["Schedule"] Width="120"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolDiscountSchedule.DiscountType) HeaderText=@Localizer["Discount Type"] Width="100" IsPrimaryKey="true"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolDiscountSchedule.Type) HeaderText=@Localizer["Type"] Width="100"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolDiscountSchedule.StartDate) HeaderText=@Localizer["Start Date"] Format="dd/MM/yyyy" Width="100"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolDiscountSchedule.Discount) HeaderText=@Localizer["Discount"] Width="90"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolDiscountSchedule.Description) HeaderText=@Localizer["Description"] Width="250"></GridColumn>
+                    <GridColumn Width="40px" HeaderText=@Localizer["Show"]>
+                        <Template Context="MasterContext">
+                            @{
+                                var Id = (MasterContext as SchoolDiscountSchedule)!.Id;
+                                <a @onclick="@(() => { return OnEdit(Id, Convert.ToInt32(BranchID)); })"><img src="Images/View.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Width="40px" HeaderText=@Localizer["Delete"]>
+                        <Template Context="MasterContext">
+                            @{
+                                var Id = (MasterContext as SchoolDiscountSchedule)!.Id;
+                                <a @onclick="@(() => { return Delete_Click(Id); })"><img src="Images/delete1.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                            }
+                        </Template>
+                    </GridColumn>
+                </GridColumns>
+            </SfGrid>
+
+        </div>
+    </div>
+
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    @Localizer["Permission Denied"]
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+
+@code
+{
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    int? BranchID, user;
+    public string? Category, Success, Failed, DiscountID;
+    public bool IsOpen = false, IsOpenDanger = false;
+    bool AllowOpen = true, Open;
+    public string? mode, ButtonLabel, EditButtonLabel;
+
+    public bool de1 { get; set; }
+    public bool de2 { get; set; }
+    public bool de3 { get; set; }
+    public bool de4 { get; set; }
+    public bool de5 { get; set; }
+    public bool de6 { get; set; }
+    public bool EPostTo { get; set; }
+
+    public bool btnAddenabled { get; set; }
+    public bool btnSaveenable { get; set; }
+    public bool btnEditenable { get; set; }
+    public bool btnDeleteenable { get; set; }
+
+    IEnumerable<string> DiscountType = new List<string>() {
+    "Percentage",
+    "Amount",
+
+    };
+
+    IEnumerable<string> Child = new List<string>() {
+    "first child",
+    "Second child",
+    "Third child",
+
+    };
+
+    IEnumerable<string> DiscountOn = new List<string>() {
+    "Full Amount",
+    "Discounted Amount",
+
+    };
+
+    public List<SchoolDiscountSchedule> DiscountTrackList = new List<SchoolDiscountSchedule>();
+    public SfGrid<SchoolDiscountSchedule>? DiscountTrackLists { get; set; }
+    public SchoolDiscountSchedule Dis = new SchoolDiscountSchedule();
+    //public DiscountTrack DTDiscountTrack = new DiscountTrack();
+    public SchoolDiscountSchedule DiscountTrackdt = new SchoolDiscountSchedule();
+    public SchoolDiscountSchedule DiscountTrackdts = new SchoolDiscountSchedule();
+
+    UserRights objUserRight = new UserRights();
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    public string CmbAccYear = "";
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+    DtoLoginModel info = new DtoLoginModel();
+
+    public IList<Accounts> PostTo = new List<Accounts>();
+    SfComboBox<string, Accounts>? SfPostToObj;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Layout.VersionChecker();
+        ButtonLabel = "New";
+        EditButtonLabel = "Edit";
+
+        // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+        // user = await SessionStorage.GetItemAsync<int>("UserID");
+        // Category = await SessionStorage.GetItemAsync<string>("Category");
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = info.UserID;
+            BranchID = info.BranchID;
+            Category = info.Category;
+        }
+
+        CmbYear = (await StudentMasterService.GetAcademicYear(BranchID))!.ToList();
+        objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+
+        DiscountTrackdt.StartDate = objAccYear.StartDate;
+        PostTo = (await _IDiscountManager.GetPostTo(BranchID))!.ToList();
+
+        if (Category == "Administrator")
+        {
+            AllowOpen = true;
+            Open = false;
+
+            DiscountTrackList = (await _IDiscountManager.Getdata(BranchID))!;
+            if (DiscountTrackList.Count != 0)
+                DiscountTrackdt = DiscountTrackList.FirstOrDefault()!;
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "DiscountMaster", "Students", BranchID))!;
+
+                if (objUserRight.AccessDenied == true)
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+                else if (objUserRight.AllowOpen == true)
+                {
+                    AllowOpen = true;
+                    Open = false;
+
+                    DiscountTrackList = (await _IDiscountManager.Getdata(BranchID))!;
+                    if (DiscountTrackList.Count != 0)
+                        DiscountTrackdt = DiscountTrackList.FirstOrDefault()!;
+                }
+            }
+            catch (Exception ex)
+            {
+                ex.Message.ToString();
+                AllowOpen = false;
+                Open = true;
+            }
+        }
+
+        de1 = false;
+        de2 = false;
+        de3 = false;
+        de4 = false;
+        de5 = false;
+        de6 = false;
+        EPostTo = false;
+
+        btnSaveenable = true;
+    }
+    public async Task OnEdit(int ID, int BranchID)
+    {
+        DiscountTrackdt = (await _IDiscountManager.GetDTDiscount(ID, BranchID))!;
+        mode = "Edit";
+
+        if (DiscountTrackdt.AccountName == null)
+        {
+            DiscountTrackdt.AccountCode = "";
+            DiscountTrackdt.AccountName = "";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task New_Click()
+    {
+        if (Category == "Administrator")
+        {
+            await BtnNew_Click();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "DiscountMaster", "Students", BranchID))!;
+                if (objUserRight.AllowAdd == true)
+                {
+                    await BtnNew_Click();
+                }
+                else
+                {
+                    IsOpenDanger = true;
+                    Failed = "Permission Denied";
+                }
+            }
+            catch (Exception Ex)
+            {
+                Ex.Message.ToString();
+            }
+        }
+    }
+
+    public async Task BtnNew_Click()
+    {
+        mode = "New";
+        if (ButtonLabel == "New")
+        {
+
+            de1 = true;
+            de2 = true;
+            de3 = true;
+            de4 = true;
+            de5 = true;
+            de6 = true;
+            EPostTo = true;
+            DiscountTrackdt.Schedule = null;
+            DiscountTrackdt.DiscountType = "";
+            DiscountTrackdt.Child = "";
+            DiscountTrackdt.Description = "";
+            //DiscountTrackdt.StartDate = Convert.ToDateTime(null);
+            DiscountTrackdt.StartDate = Convert.ToDateTime(objAccYear.StartDate.ToString());
+            DiscountTrackdt.Discount = "";
+            DiscountTrackdt.NetDiscount = "";
+            DiscountTrackdt.AccountCode = "";
+            DiscountTrackdt.AccountName = "";
+            ButtonLabel = "Cancel";
+            btnSaveenable = false;
+            btnEditenable = true;
+            btnDeleteenable = true;
+        }
+        else
+        {
+            DiscountTrackdt.StartDate = Convert.ToDateTime(objAccYear.StartDate.ToString());
+
+            de1 = false;
+            de2 = false;
+            de3 = false;
+            de5 = false;
+            de6 = false;
+            EPostTo = false;
+            DiscountTrackdt.Schedule = null;
+            DiscountTrackdt.DiscountType = "";
+            DiscountTrackdt.Child = "";
+            DiscountTrackdt.Description = "";
+            //DiscountTrackdt.StartDate = Convert.ToDateTime(null);
+            DiscountTrackdt.Discount = "";
+            DiscountTrackdt.NetDiscount = "";
+            DiscountTrackdt.AccountCode = "";
+            DiscountTrackdt.AccountName = "";
+            ButtonLabel = "New";
+            btnEditenable = false;
+            btnDeleteenable = false;
+            btnSaveenable = true;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Save_Click()
+    {
+        await Save();
+    }
+
+    public async Task Save()
+    {
+        if (mode == "New")
+        {
+            de1 = true;
+            de2 = true;
+            de3 = true;
+            de5 = true;
+            de6 = true;
+            EPostTo = true;
+            SchoolDiscountSchedule CM = new SchoolDiscountSchedule();
+            CM.Type = "Discount";
+            CM.Schedule = DiscountTrackdt.Schedule;
+            CM.DiscountType = DiscountTrackdt.DiscountType;
+            CM.Child = DiscountTrackdt.Child;
+            CM.Description = DiscountTrackdt.Description;
+            CM.StartDate = DiscountTrackdt.StartDate;
+            CM.Discount = DiscountTrackdt.Discount;
+            CM.NetDiscount = DiscountTrackdt.NetDiscount;
+            CM.BranchID = Convert.ToInt32(BranchID);
+
+            object id = await _IDiscountManager.GetID(DiscountTrackdt.AccountCode);
+            // if (id == null || id ==
+            if (id == null)
+            {
+                CM.PostTo = Convert.ToInt32(null);
+            }
+            else
+            {
+                CM.PostTo = Convert.ToInt32(id);
+            }
+
+            HttpResponseMessage response = await _IDiscountManager.SaveMaster(CM);
+
+            if (response.IsSuccessStatusCode)
+            {
+                DtoUserTrack dttrack = new DtoUserTrack();
+                dttrack.UserId = user;
+                dttrack.TableName = "School_DiscountSchedule";
+                dttrack.ActionDate = DateTime.Now;
+                dttrack.ModuleName = "Student";
+                dttrack.Reference = "College Portal";
+                dttrack.Reason = DiscountTrackdt.Schedule;
+                HttpResponseMessage msgTrack = await _IDiscountManager.AddSaveUserTrack(dttrack);
+                IsOpen = true;
+                Success = "Added Successfully";
+                DiscountTrackList = (await _IDiscountManager.Getdata(BranchID))!;
+
+                ButtonLabel = "New";
+                btnSaveenable = true;
+                de1 = false;
+                de2 = false;
+                de3 = false;
+                de5 = false;
+                de6 = false;
+                EPostTo = false;
+                await this.InvokeAsync(StateHasChanged);
+
+            }
+            else
+            {
+                DiscountTrackList = (await _IDiscountManager.Getdata(BranchID))!;
+
+                IsOpen = true;
+                Success = "Failed ";
+            }
+
+        }
+        if (mode == "Edit")
+        {
+            de1 = true;
+            de2 = true;
+            de3 = true;
+            de5 = true;
+            de6 = true;
+            EPostTo = true;
+            SchoolDiscountSchedule MMM = new SchoolDiscountSchedule();
+
+            MMM.Id = DiscountTrackdt.Id;
+            MMM.Type = "Discount";
+            MMM.Schedule = DiscountTrackdt.Schedule;
+            MMM.Child = DiscountTrackdt.Child;
+            MMM.Description = DiscountTrackdt.Description;
+            MMM.StartDate = DiscountTrackdt.StartDate;
+            MMM.DiscountType = DiscountTrackdt.DiscountType;
+            MMM.Discount = DiscountTrackdt.Discount;
+            MMM.NetDiscount = DiscountTrackdt.NetDiscount;
+            MMM.BranchID = Convert.ToInt32(BranchID);
+
+            object id = await _IDiscountManager.GetID(DiscountTrackdt.AccountCode);
+            if (id == null)
+            {
+                MMM.PostTo = Convert.ToInt32(null);
+            }
+            else
+            {
+                MMM.PostTo = Convert.ToInt32(id);
+            }
+
+            //await _IDiscountManager.UpdateMaster(MMM);
+            HttpResponseMessage response = await _IDiscountManager.UpdateMaster(MMM);
+
+            if (response.IsSuccessStatusCode)
+            {
+                DtoUserTrack dttrack = new DtoUserTrack();
+                dttrack.UserId = user;
+                dttrack.TableName = "School_DiscountSchedule";
+                dttrack.ActionDate = DateTime.Now;
+                dttrack.ModuleName = "Student";
+                dttrack.Reference = "College Portal";
+                dttrack.Reason = DiscountTrackdt.Schedule;
+                HttpResponseMessage msgTrack = await _IDiscountManager.EditSaveUserTrack(dttrack);
+                IsOpen = true;
+                Success = "Updated Successfully";
+                EditButtonLabel = "Edit";
+                btnSaveenable = true;
+                btnAddenabled = false;
+                de1 = false;
+                de2 = false;
+                de3 = false;
+                de5 = false;
+                de6 = false;
+                EPostTo = false;
+                await InvokeAsync(StateHasChanged);
+            }
+            DiscountTrackList = (await _IDiscountManager.Getdata(BranchID))!;
+
+        }
+    }
+    public async Task Edit_Click()
+    {
+        if (Category == "Administrator")
+        {
+            await BtnEdit_Click();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "DiscountMaster", "Students", BranchID))!;
+                if (objUserRight.AllowEdit == true)
+                {
+                    await BtnEdit_Click();
+                }
+                else
+                {
+                    IsOpenDanger = true;
+                    Failed = "Permission Denied";
+                }
+            }
+            catch (Exception Ex)
+            {
+                Ex.Message.ToString();
+            }
+        }
+    }
+
+    public async Task BtnEdit_Click()
+    {
+        mode = "Edit";
+        if (EditButtonLabel == "Edit")
+        {
+            de1 = true;
+            de2 = true;
+            de3 = true;
+            de4 = true;
+            de5 = true;
+            de6 = true;
+            EPostTo = true;
+            EditButtonLabel = "Cancel";
+            btnDeleteenable = true;
+            btnAddenabled = true;
+            btnSaveenable = false;
+        }
+        else
+        {
+            DiscountTrackdt.Schedule = null;
+            DiscountTrackdt.DiscountType = "";
+            DiscountTrackdt.Child = "";
+            DiscountTrackdt.Description = "";
+            //DiscountTrackdt.StartDate = Convert.ToDateTime(null);
+            DiscountTrackdt.StartDate = Convert.ToDateTime(objAccYear.StartDate.ToString());
+            DiscountTrackdt.Discount = "";
+            DiscountTrackdt.NetDiscount = "";
+            DiscountTrackdt.AccountCode = "";
+            DiscountTrackdt.AccountName = "";
+            EditButtonLabel = "Edit";
+            btnDeleteenable = false;
+            btnAddenabled = false;
+            btnSaveenable = true;
+            de1 = false;
+            de2 = false;
+            de3 = false;
+            de4 = false;
+            de5 = false;
+            de6 = false;
+            EPostTo = false;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task<double> GetRowCounter(int? val)
+    {
+        var index = await DiscountTrackLists!.GetRowIndexByPrimaryKeyAsync(val);
+        var currentPage = DiscountTrackLists.PageSettings.CurrentPage;
+        if (DiscountTrackLists.AllowPaging && currentPage > 1)
+        {
+            index = (((currentPage - 1) * DiscountTrackLists.PageSettings.PageSize) + index);
+        }
+        return index + 1;
+
+    }
+    public async Task Delete_Click(int Id)
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? you want to delete");
+        if (confirmed)
+        {
+            if (Category == "Administrator")
+            {
+                HttpResponseMessage response = await _IDiscountManager.DeleteDiscount(Id);
+                if (response.IsSuccessStatusCode)
+                {
+                    DtoUserTrack dttrack = new DtoUserTrack();
+                    dttrack.UserId = user;
+                    dttrack.TableName = "School_DiscountSchedule";
+                    dttrack.ActionDate = DateTime.Now;
+                    dttrack.ModuleName = "Student";
+                    dttrack.Reference = "College Portal";
+                    dttrack.Reason = DiscountTrackdt.Schedule;
+                    HttpResponseMessage msgTrack = await _IDiscountManager.DeleteSaveUserTrack(dttrack);
+
+                    DiscountTrackList = (await _IDiscountManager.Getdata(BranchID))!;
+
+                    IsOpen = true;
+                    Success = "Deleted Successfully";
+                    await this.InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                try
+                {
+                    objUserRight = (await _UserRights.GetUserRights(user, "DiscountMaster", "Students", BranchID))!;
+                    if (objUserRight.AllowDelete == true)
+                    {
+                        HttpResponseMessage response = await _IDiscountManager.DeleteDiscount(Id);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            DtoUserTrack dttrack = new DtoUserTrack();
+                            dttrack.UserId = user;
+                            dttrack.TableName = "School_DiscountSchedule";
+                            dttrack.ActionDate = DateTime.Now;
+                            dttrack.ModuleName = "Student";
+                            dttrack.Reference = "College Portal";
+                            dttrack.Reason = DiscountTrackdt.Schedule;
+                            HttpResponseMessage msgTrack = await _IDiscountManager.DeleteSaveUserTrack(dttrack);
+
+                            DiscountTrackList = (await _IDiscountManager.Getdata(BranchID))!;
+
+                            IsOpen = true;
+                            Success = "Deleted Successfully";
+                            await this.InvokeAsync(StateHasChanged);
+                        }
+                    }
+                    else
+                    {
+                        IsOpenDanger = true;
+                        Failed = "Permission Denied";
+                    }
+                }
+                catch (Exception Ex)
+                {
+                    Ex.Message.ToString();
+                }
+            }
+        }
+
+        await this.InvokeAsync(StateHasChanged);
+    }
+
+    public void SelectedNameChanged(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, Accounts> arg)
+    {
+        if (arg.ItemData != null)
+        {
+            DiscountTrackdt.AccountName = arg.ItemData.AccountName;
+            DiscountTrackdt.AccountCode = arg.ItemData.AccountCode;
+        }
+        else
+        {
+            DiscountTrackdt.AccountCode = DiscountTrackdt.AccountCode;
+            DiscountTrackdt.AccountName = "";
+        }
+    }
+
+    public async Task OnPostToFiltering(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+    {
+        args.PreventDefaultAction = true;
+        var pre = new WhereFilter();
+        var predicate = new List<WhereFilter>();
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountCode", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountName", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "Id", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccCategory", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+
+        pre = WhereFilter.Or(predicate);
+        var query = new Query().Where(pre).Take(40);
+        await this.SfPostToObj!.FilterAsync(PostTo, query);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+
+}

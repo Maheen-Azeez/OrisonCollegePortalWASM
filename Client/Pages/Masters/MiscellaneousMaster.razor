@@ -1,0 +1,375 @@
+﻿@page "/MiscellaneousMaster"
+
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Inputs;
+@using Microsoft.Extensions.Localization
+@using System.Web;
+
+@inject OrisonCollegePortal.Client.Contracts.IMiscellaneousMasterManager _MiscellaneousMasterManager
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject HttpClient Http
+@inject IJSRuntime JsRuntime;
+@inject ToastService ToastService
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+@if (AllowOpen == true)
+{
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-8">
+                <SfButton @onclick="@New_Click" Content=@Localizer[ButtonLabel] IconCss="Icon add" CssClass="e-btn" Disabled="@btnAddenable" />
+                <SfButton @onclick="@Save_Click" Content=@Localizer["Save"] IconCss="Icon save" CssClass="e-btn" Disabled="@btnSaveenable" />
+
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true">
+                    @Success
+                </BlazorStrap.BSAlert>
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDanger" AutoHide="true">
+                    @Failed @fs
+                </BlazorStrap.BSAlert>
+
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@Isfs" AutoHide="true">
+                    Description Exist  <a><i class="fa alert" aria-hidden="true"></i></a>
+                </BlazorStrap.BSAlert>
+
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsDelete" AutoHide="true">
+                    Delete Successfully  <a><i class="fa alert" aria-hidden="true"></i></a>
+                </BlazorStrap.BSAlert>
+            </div>
+            <div class="col-md-4">
+                <div class="header-div-style">
+                    <label class="header-label">@Localizer["MISCELLANEOUS  MASTER"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-4">
+                <label class="label">@Localizer["Source"]</label>
+                <SfComboBox TValue="string" TItem="MiscellaneousMasterdata" AllowCustom="true" Placeholder=@Localizer["Select"] @bind-Value="@DTMMaster.Source" DataSource="@ComboValues" AllowFiltering="true">
+                    <ComboBoxFieldSettings Text="Source" Value="Source"></ComboBoxFieldSettings>
+                    <ComboBoxEvents TValue="string" TItem="MiscellaneousMasterdata" ValueChange="@onChangeClass" />
+                </SfComboBox>
+            </div>
+            <div class="col-md-5">
+                <label class="label">@Localizer["Description"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DTMMaster.Description" Enabled="@de" ID="d"></SfTextBox>
+            </div>
+            <div class="col-md-2">
+                <label class="label">@Localizer["Code"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DTMMaster.Code" Enabled="@de" ID="d"></SfTextBox>
+            </div>
+        </div>
+        <div class="row" style="padding-top:12px">
+            <div class="col-md-3">
+                <label>@Localizer["Default?"]</label>
+            </div>
+        </div>
+        <div class="row" style="padding-top:10px">
+            <div class="col-md-3">
+                <SfRadioButton Label=@Localizer["Yes"] Name="Default?" Checked="@DTMMaster.VDefault" Disabled="@rd1"></SfRadioButton>
+            </div>
+            <div class="col-md-3">
+                <SfRadioButton Label=@Localizer["No"] Name="Default?" Checked="@DTMMaster.VDefault" Disabled="@rd1"></SfRadioButton>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="table-responsive" style="position: relative; min-width: 300px ">
+            @if (MiscellaneousMasterdataList == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else
+            {
+                <SfGrid DataSource="@MiscellaneousMasterdataList" ID="gv_SiblingRegister" @ref="MiscellaneousMasterdataLists"
+                        GridLines="GridLine.Both"
+                        AllowFiltering="true"
+                        AllowPaging="true"
+                        AllowExcelExport="true"
+                        AllowPdfExport="true"
+                        Width="100%"
+                        ShowColumnChooser="true"
+                        AllowResizing="true"
+                        AllowSorting="true"
+                        EnableAltRow="true"
+                        RowHeight="25">
+                    <GridEvents OnToolbarClick="ToolbarClick" TValue="MiscellaneousMasterdata"></GridEvents>
+                    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Menu"></GridFilterSettings>
+                    <GridPageSettings PageSize="50"></GridPageSettings>
+                    <GridColumns>
+                        <GridColumn Field=@nameof(MiscellaneousMasterdata.Id) HeaderText=@Localizer["id"] Width="1" Visible="false"></GridColumn>
+                        <GridColumn Field=@nameof(MiscellaneousMasterdata.Source) HeaderText=@Localizer["Source"] Width="120"></GridColumn>
+                        <GridColumn Field=@nameof(MiscellaneousMasterdata.Description) HeaderText=@Localizer["Description"] Width="300"></GridColumn>
+
+                        <GridColumn Width="40px" HeaderText=@Localizer["Delete"]>
+                            <Template Context="DeleteContext">
+                                @{
+                                    var DeleteId = (DeleteContext as MiscellaneousMasterdata)!.Id;
+                                    <a @onclick="@(() => { return OnDelete(DeleteId); })"><img src="Images/delete16_16.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                                }
+                            </Template>
+                        </GridColumn>
+                    </GridColumns>
+                </SfGrid>
+            }
+        </div>
+    </div>
+
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    @Localizer["Permission Denied"]
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    int? BranchID, user;
+    public bool IsDelete = false;
+    public bool Isfs = false;
+    public bool rd2 { get; set; }
+    public bool rd1 { get; set; }
+    public bool de { get; set; }
+    public bool btnAddenable { get; set; }
+    public bool btnSaveenable { get; set; }
+    public bool btnEditenable { get; set; }
+    public bool btnCancelenable { get; set; }
+    public bool btnBackenable { get; set; }
+    public string? Category, Success, Failed;
+
+    public bool enable, IsOpen = false, IsOpenAdd = false, IsOpenNote = false, IsOpenRelation = false, IsOpenDocument = false, popSearch = false, fs = false;
+    public bool IsOpenDanger = false;
+    bool AllowOpen = true, Open, OpenError, visible = false;
+
+    UserRights objUserRight = new UserRights();
+    DtoLoginModel info = new DtoLoginModel();
+
+    public List<MiscellaneousMasterdata> ComboValues = new List<MiscellaneousMasterdata>();
+    public MiscellaneousMasterdata DTMMaster = new MiscellaneousMasterdata();
+    public MiscellaneousMasterdata ComboVa = new MiscellaneousMasterdata();
+
+    public List<MiscellaneousMasterdata> MiscellaneousMasterdataList = new List<MiscellaneousMasterdata>();
+    public SfGrid<MiscellaneousMasterdata>? MiscellaneousMasterdataLists { get; set; }
+
+    public List<MiscellaneousMasterdata> comboss = new List<MiscellaneousMasterdata>();
+
+    public string? ButtonLabel, EditButtonLabel, mode, FeeID;
+
+    protected async Task onChangeClass(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, MiscellaneousMasterdata> args)
+    {
+        MiscellaneousMasterdataList = (await _MiscellaneousMasterManager.ComboMaster(args.Value))!;
+    }
+
+    public async Task OnDelete(int Id)
+    {
+        await _MiscellaneousMasterManager.DeleteMaster(Id);
+        IsDelete = true;
+        await MiscellaneousMasterdataLists!.Refresh();
+        int _id = MiscellaneousMasterdataList.FindIndex(a => a.Id == Id);
+        MiscellaneousMasterdataList.RemoveAt(_id);
+        MiscellaneousMasterdataList = (await _MiscellaneousMasterManager.ComboMaster(DTMMaster.Source!))!;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Save_Click()
+    {
+        {
+            await Save();
+        }
+    }
+
+    async Task Save()
+    {
+
+        comboss = MiscellaneousMasterdataList.Where(a => a.Description == DTMMaster.Description).ToList();
+        if (comboss.Count == 0)
+        {
+            if (mode == "New")
+            {
+                MiscellaneousMasterdata MM = new MiscellaneousMasterdata();
+                MM.Source = DTMMaster.Source;
+
+                MM.Description = DTMMaster.Description;
+                MM.Code = DTMMaster.Code;
+                MM.Id = DTMMaster.Id;
+                MM.VDefault = DTMMaster.VDefault;
+
+                HttpResponseMessage response = await _MiscellaneousMasterManager.SaveMaster(MM);
+                if (response.IsSuccessStatusCode)
+                {
+                    IsOpen = true;
+                    Success = "Added Successfully";
+                    DTMMaster.Code="";
+                     DTMMaster.Description="";
+                    MiscellaneousMasterdataList = (await _MiscellaneousMasterManager.ComboMaster(DTMMaster.Source!))!;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                Isfs = true;
+                MiscellaneousMasterdataList = (await _MiscellaneousMasterManager.ComboMaster(DTMMaster.Source!))!;
+            }
+        }
+        else
+        {
+            IsOpen = true;
+            Success = "Description already exists ";
+        }
+    }
+
+    public async Task New_Click()
+    {
+        mode = "New";
+        if (ButtonLabel == "New")
+        {
+            de = true;
+            rd1 = false;
+            rd2 = false;
+            btnSaveenable = false;
+            ButtonLabel = "Cancel";
+        }
+        else
+        {
+            DTMMaster.Description = "";
+            DTMMaster.Code = "";
+            rd1 = true;
+            rd2 = true;
+            de = false;
+
+            btnSaveenable = true;
+            ButtonLabel = "New";
+            DTMMaster.Source = "";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+        // user = await SessionStorage.GetItemAsync<int>("UserID");
+        // Category = await SessionStorage.GetItemAsync<string>("Category");
+        await Layout.VersionChecker();
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = info.UserID;
+            BranchID = info.BranchID;
+            Category = info.Category;
+        }
+
+        if (Category == "Administrator")
+        {
+            AllowOpen = true;
+            Open = false;
+
+            await LoadData();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "MasterMisc", "Students", BranchID))!;
+
+                if (objUserRight.AccessDenied == true)
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+                else if (objUserRight.AllowOpen == true)
+                {
+                    AllowOpen = true;
+                    Open = false;
+
+                    await LoadData();
+                }
+                else
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                AllowOpen = false;
+                Open = true;
+            }
+        }
+    }
+
+    public async Task LoadData()
+    {
+        ButtonLabel = "New";
+        EditButtonLabel = "Edit";
+        ComboValues = (await _MiscellaneousMasterManager.GetMaster())!;
+        await this.InvokeAsync(StateHasChanged);
+        de = false;
+        rd2 = true;
+        rd1 = true;
+        btnSaveenable = true;
+    }
+
+    public void ToolbarClick(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Id == "BooksBorrowedLists_pdfexport")
+        {
+            this.MiscellaneousMasterdataLists!.ExportToPdfAsync();
+        }
+        else if (args.Item.Id == "BooksBorrowedLists_excelexport")
+        {
+            this.MiscellaneousMasterdataLists!.ExportToExcelAsync();
+        }
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+}
+
+
+

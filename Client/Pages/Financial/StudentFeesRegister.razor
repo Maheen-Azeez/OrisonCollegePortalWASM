@@ -1,0 +1,952 @@
+﻿@page "/StudentFeesRegister"
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.BoldReport;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.RichTextEditor
+
+@using Microsoft.Extensions.Localization
+@using System.Dynamic
+@using Newtonsoft.Json
+@using System.Net
+@using System.Web
+@using System.Net.Mail
+@using System.IO
+@* @using SecurityService
+ *@
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentFeeManager StudentService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+@inject OrisonCollegePortal.Client.Services.clsDBOperationService dboService
+@inject OrisonCollegePortal.Client.Services.AccountService accService
+@inject OrisonCollegePortal.Client.Services.SendMailService sendmailService
+@inject HttpClient Http
+@inject NavigationManager uriHelper
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+@inject OrisonCollegePortal.Client.Contracts.BoldReport.IBoldReportManager _BoldReport
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+@inject IJSRuntime JsRuntime
+@inject ToastService ToastService
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+<style>
+    .e-dialog .e-dlg-header {
+        color: #0a1971;
+        font-size: 16px;
+        font-weight: normal;
+        /*background-color: #0a1971;*/
+    }
+</style>
+
+@if (AllowOpen == true)
+{
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-9">
+                <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" title="Excel" />
+                <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" title="PDF" />
+                <SfComboBox TValue="string" TItem="ComboFields" PopupHeight="230px" Placeholder="" @bind-Value="@ComboBoxValue" DataSource="@ComboValue" Width="150px">
+                    <ComboBoxEvents TValue="string" TItem="ComboFields" ValueChange="OnChange"></ComboBoxEvents>
+                    <ComboBoxFieldSettings Text="Text" Value="ID"></ComboBoxFieldSettings>
+                </SfComboBox>
+                <SfComboBox TValue="string" TItem="ComboFields" PopupHeight="230px" Placeholder="" @bind-Value="@ComboBoxValueStatus" DataSource="@ComboValueStatus" Width="125px">
+                    <ComboBoxEvents TValue="string" TItem="ComboFields" ValueChange="OnChangeStatus"></ComboBoxEvents>
+                    <ComboBoxFieldSettings Text="Text" Value="ID"></ComboBoxFieldSettings>
+                </SfComboBox>
+                <SfComboBox TValue="string" TItem="SchoolAcademicYear" PopupHeight="230px" Placeholder="" @bind-Value="@CmbAccYear" DataSource="@CmbYear" Width="110px">
+                    <ComboBoxFieldSettings Text="AcademicYear" Value="AcademicYear"></ComboBoxFieldSettings>
+                </SfComboBox>
+
+                <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " HtmlAttributes="@ClearFilter"></SfButton>
+                <SfButton OnClick="ShowColumnChooser" IconCss="Icon columnchooser" CssClass="e-btn4" Content=" " HtmlAttributes="@ColumnChooser"></SfButton>
+                <SfTextBox @ref="search" Input="OnInput" Placeholder="Global Search" Width="150px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpen" AutoHide="true">
+                    @Success
+                </BlazorStrap.BSAlert>
+            </div>
+            <div class="col-md-3">
+                <div class="header-div-style">
+                    <label class="header-label">STUDENTS FEE REGISTER</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-2">
+                <label class="label">@Localizer["From"]</label>
+                <SfDatePicker TValue="DateTime" ShowClearButton="true" @bind-Value="@FromDate" Format="dd/MM/yyyy" Width="100%">
+                </SfDatePicker>
+            </div>
+            <div class="col-md-2">
+                <label class="label">@Localizer["To"]</label>
+                <SfDatePicker TValue="DateTime" ShowClearButton="true" @bind-Value="@ToDate" Format="dd/MM/yyyy" Width="100%">
+                </SfDatePicker>
+            </div>
+            <div class="col-md-8" style="padding-top:14px">
+                <SfButton Content=@Localizer["Go"] OnClick="@Go_Click" IsPrimary="false" CssClass="e-btn e-btn4"></SfButton>
+                <SfButton @onclick="BtnPrint" IconCss="Icon preprint" CssClass="e-btn" Content="Print" IsPrimary="false" />
+                <SfButton @onclick="@Reminder_Click" CssClass="e-btn e-btn5" Content=@Localizer["Fee Reminder"] />
+                @if (HomeLoad == 1)
+                {
+                    <p> <img src="gif/loading-waiting.gif" style=" width: 50px; height: 50px;" /></p>
+                }
+                @*<SfButton @onclick="@ReminderSMS_Click" CssClass="e-btn e-btn3" Content="Fee Reminder SMS" Disabled="true"/>*@
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div>
+            @if (ChangeValue == "Default")
+            {
+                @if (StudFeeRegister == null)
+                {
+                    <p><em>Loading...</em></p>
+                }
+                else
+                {
+                    <SfGrid DataSource="@StudFeeRegister" ID="gv_StudentFeeRegister" @ref="gv_StudentFeeRegister"
+                            GridLines="GridLine.Both"
+                            AllowFiltering="true"
+                            AllowPaging="true"
+                            AllowExcelExport="true"
+                            AllowPdfExport="true"
+                            Height="@GridHeight"
+                            Width="100%"
+                            ShowColumnChooser="true"
+                            AllowResizing="true"
+                            AllowSorting="true"
+                            EnableAltRow="true"
+                            RowHeight="25">
+                        <GridEvents OnToolbarClick="ToolbarClick" TValue="dtStudentFeeRegister"></GridEvents>
+                        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                        <GridPageSettings PageSize="50"></GridPageSettings>
+                        <GridSelectionSettings PersistSelection="true" CheckboxOnly="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Row" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple" EnableToggle=true></GridSelectionSettings>
+
+                        <GridAggregates>
+                            <GridAggregate>
+                                <GridAggregateColumns>
+                                    <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Opening) Type="AggregateType.Sum">
+                                        <FooterTemplate>
+                                            @{
+                                                var aggregate = (context as AggregateTemplateContext);
+                                                <div style="padding-top:5px;">
+                                                    <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate!.Sum</div>
+                                                </div>
+                                            }
+                                        </FooterTemplate>
+                                    </GridAggregateColumn>
+                                    <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Debit) Type="AggregateType.Sum">
+                                        <FooterTemplate>
+                                            @{
+                                                var aggregate = (context as AggregateTemplateContext);
+                                                <div style="padding-top:5px;">
+                                                    <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate!.Sum</div>
+                                                </div>
+                                            }
+                                        </FooterTemplate>
+                                    </GridAggregateColumn>
+                                    <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Discount) Type="AggregateType.Sum">
+                                        <FooterTemplate>
+                                            @{
+                                                var aggregate = (context as AggregateTemplateContext);
+                                                <div style="padding-top:5px;">
+                                                    <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate!.Sum</div>
+                                                </div>
+                                            }
+                                        </FooterTemplate>
+                                    </GridAggregateColumn>
+
+                                    <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Credit) Type="AggregateType.Sum">
+                                        <FooterTemplate>
+                                            @{
+                                                var aggregate = (context as AggregateTemplateContext);
+                                                <div>
+                                                    <div style="align-items:end;">@aggregate!.Sum</div>
+
+                                                </div>
+                                            }
+                                        </FooterTemplate>
+                                    </GridAggregateColumn>
+                                    <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Balance) Type="AggregateType.Sum">
+                                        <FooterTemplate>
+                                            @{
+                                                var aggregate = (context as AggregateTemplateContext);
+                                                <div>
+
+                                                    <div style="align-items:end;">@aggregate!.Sum</div>
+
+                                                </div>
+                                            }
+                                        </FooterTemplate>
+                                    </GridAggregateColumn>
+                                </GridAggregateColumns>
+                            </GridAggregate>
+                        </GridAggregates>
+
+                        <GridColumns>
+                            <GridColumn Type="ColumnType.CheckBox" AllowFiltering="false" AllowSorting="false" Index="0" Width="30">
+                            </GridColumn>
+                            <GridColumn HeaderText="" Width="45px">
+                                <Template>
+                                    @{
+                                        var AccountID = (context as dtStudentFeeRegister)!.AccountID;
+                                        <a @onclick="@(() => { return PostStudent(AccountID); })"><img src="Images/Forward.png" style="display: block; margin-left: auto; margin-right: auto; height: 20px; width: 20px; cursor: pointer;" /></a>
+                                    }
+                                </Template>
+                            </GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.AccountID) IsPrimaryKey="true" HeaderText="AccountID" Width="120" Visible="false"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.AccountCode) HeaderText=@Localizer["SCode"] Width="90"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.AccountName) HeaderText=@Localizer["Student Name"] Width="180"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.StudentStatus) HeaderText=@Localizer["Student Status"] Width="120"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Opening) CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" HeaderText=@Localizer["Opening"] TextAlign="TextAlign.Right" Format="n2" Width="110"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Debit) HeaderText=@Localizer["Fee"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="120" Format="n2"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Discount) HeaderText=@Localizer["Discount"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="120" Format="n2"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Credit) HeaderText=@Localizer["Paid"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="120" Format="n2"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Balance) HeaderText=@Localizer["Balance"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="120" Format="n2"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Class) HeaderText=@Localizer["Class"] Width="90"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Division) HeaderText=@Localizer["Section"] Width="80"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.JoiningAcademicYear) HeaderText=@Localizer["JoiningAcYear"] Width="120"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.PerMobile) HeaderText=@Localizer["Mobile"] Width="120"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.ParentID) HeaderText=@Localizer["ParentID"] Width="120" Visible="false"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.ParentCode) HeaderText=@Localizer["Parent Code"] Width="100"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.ParentName) HeaderText=@Localizer["Parent Name"] Width="180"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.AcademicYear) HeaderText=@Localizer["Academic Year"] Width="120"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Shift) HeaderText=@Localizer["Shift"] Width="60"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.Email) HeaderText=@Localizer["Email"] Width="180"></GridColumn>
+                            <GridColumn Field=@nameof(dtStudentFeeRegister.SmsNumber) HeaderText=@Localizer["SmsNumber"] Width="120"></GridColumn>
+                        </GridColumns>
+                    </SfGrid>
+                }
+                <style>
+                    .e-grid .e-gridheader .e-headercell.e-attr .e-headercelldiv {
+                        text-align: left !important;
+                    }
+                </style>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    Permission Denied
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+
+
+<SfDialog Width="800px" IsModal="true" @bind-Visible="PopupFeeReminder" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header>
+            Fee Reminder Email
+        </Header>
+        <Content>
+            <div class="form-group">
+                <div class="form-row">
+                    <label class="label">Subject</label>
+                    <SfTextBox CssClass="textbox" @bind-Value="@Subject"></SfTextBox>
+                </div>
+                <div class="form-row">
+                    <label class="label">Template</label>
+                    <SfComboBox TValue="string" TItem="SchoolMailTemplate" @bind-Value="@DTMailTemplate.Value" @ref="SfTemplateObj" DataSource="@TemplateValue" CssClass="e-multi-column"
+                                AllowFiltering="true" PopupHeight="200"
+                                EnableVirtualization="true" AllowCustom="true" Placeholder="Select">
+                        <ComboBoxFieldSettings Text="Value" Value="Value"></ComboBoxFieldSettings>
+                        <ComboBoxEvents TValue="string" TItem="SchoolMailTemplate" ValueChange="@SelectedTemplateChanged"></ComboBoxEvents>
+                    </SfComboBox>
+                </div>
+                <div class="form-row">
+                    <label class="label">Body</label>
+                    <SfRichTextEditor ID="AutoSave" SaveInterval="saveInterval" AutoSaveOnIdle="true" @bind-Value="@EmailBody">
+                        <RichTextEditorToolbarSettings Items="@Tools" Type="ToolbarType.MultiRow" Enable="true" />
+                    </SfRichTextEditor>
+                </div>
+            </div>
+            <div>
+                <div class="form-row" style="padding-top: 2%;">
+                    <label style="color:green;font-size:12px">@StudentCount</label>
+                </div>
+
+                <div class="pt-2" style="text-align:right;">
+                    <label style="color:red;font-size:12px">@Message</label>
+                    <SfButton IconCss="Icon Mail" Content="Send" @onclick="@Send_Click" CssClass="e-btn"></SfButton>
+                    <SfButton Content="Cancel" @onclick="@(()=>PopupFeeReminder=false)" CssClass="e-btn"></SfButton>
+                </div>
+            </div>
+        </Content>
+    </DialogTemplates>
+    <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+</SfDialog>
+
+<SfDialog Width="800px" IsModal="true" @bind-Visible="PopupFeeReminderSMS" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header>
+            Fee Reminder SMS
+        </Header>
+        <Content>
+            <div class="form-group">
+                <div class="form-row">
+                    <label class="label">Language</label>
+                    <SfTextBox CssClass="textbox" @bind-Value="@Subject"></SfTextBox>
+                </div>
+
+                <div class="form-row">
+                    <label class="label">Message</label>
+                    <SfRichTextEditor ID="AutoSave" SaveInterval="saveInterval" AutoSaveOnIdle="true" @bind-Value="@SMSBody">
+                        <RichTextEditorToolbarSettings Enable="false" />
+                    </SfRichTextEditor>
+                </div>
+            </div>
+            <div>
+                <div class="form-row" style="padding-top: 2%;">
+                    <label style="color:green;font-size:12px">@StudentCount</label>
+                </div>
+
+                <div class="pt-2" style="text-align:right;">
+                    <label style="color:red;font-size:12px">@SMSMessage</label>
+                    <SfButton IconCss="Icon Mail" Content="Send" @onclick="@SendSMS_Click" CssClass="e-btn"></SfButton>
+                    <SfButton Content="Cancel" @onclick="@(()=>PopupFeeReminder=false)" CssClass="e-btn"></SfButton>
+                </div>
+            </div>
+        </Content>
+    </DialogTemplates>
+
+    @*<DialogButtons>
+    <DialogButton IconCss="Icon Mail" Content=@Localizer["Send"] @onclick="@Send_Click" CssClass="e-btn" />
+    <DialogButton Content=@Localizer["Cancel"] @onclick="@(()=>PopupFeeReminder=false)" CssClass="e-btn" />
+    </DialogButtons>*@
+    <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+</SfDialog>
+
+<SfDialog Width="200px" CssClass="LoadingPop" IsModal="true" Height="200px" @bind-Visible="PopupLoading">
+    <DialogTemplates>
+        <Header>
+        </Header>
+        <Content>
+            <div class="loader" style="background-color:transparent"></div>
+            <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="images/BackgroundOrisonLogo.png" height="590px" width="770px" /></svg>
+        </Content>
+    </DialogTemplates>
+    <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+</SfDialog>
+
+
+@code {
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+    int BranchID, user;
+    public string? Category, Status = "", Success, CompanyCode, Message, GridHeight = "250px", StudentCount, SMSMessage, SourceCon;
+    bool AllowOpen = true, Open, OpenError, visible = false;
+    public bool IsOpen = false, PopupFeeReminder = false, PopupFeeReminderSMS = false;
+    string? Subject, EmailBody, GetFromUser, GetPwd, GetHost, GetPort, SMSBody, SMSUserID, Pwd, MailType, GetUsername, GetMailBCC;
+    decimal MobileWidth;
+    bool PopupLoading { get; set; }
+    int sendResponse;
+
+    public int HomeLoad = 0;
+
+    private Dictionary<string, object> ColumnChooser = new Dictionary<string, object>()
+{
+           { "title", "Column Chooser"}
+    };
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+{
+        { "title", "Clear Filter"}
+    };
+
+    public SfGrid<dtStudentFeeRegister>? gv_StudentFeeRegister { get; set; }
+
+    public class ComboFields
+    {
+        public string? ID { get; set; }
+        public string? Text { get; set; }
+    }
+    public List<ComboFields> ComboValue = new List<ComboFields>()
+{
+        new ComboFields(){ ID= "Default", Text= "Default" },
+           new ComboFields(){ ID= "Dated Debit", Text= "Dated Debit" },
+        new ComboFields(){ ID= "Dated Credit", Text= "Dated Credit" }
+
+    };
+    public string ComboBoxValue = "Default";
+    public string ChangeValue { get; set; } = "Default";
+
+    public List<ComboFields> ComboValueStatus = new List<ComboFields>()
+{
+        new ComboFields(){ ID= "Studying", Text= "Studying" },
+           new ComboFields(){ ID= "All", Text= "All" }
+
+    };
+    public string ComboBoxValueStatus = "Studying";
+    public string ChangeValueStatus { get; set; } = "Studying";
+
+    private List<ToolbarItemModel> Tools = new List<ToolbarItemModel>()
+{
+        new ToolbarItemModel() { Command = ToolbarCommand.Bold },
+        new ToolbarItemModel() { Command = ToolbarCommand.Italic },
+        new ToolbarItemModel() { Command = ToolbarCommand.Underline },
+        new ToolbarItemModel() { Command = ToolbarCommand.StrikeThrough },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontName },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontSize },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontColor },
+        new ToolbarItemModel() { Command = ToolbarCommand.BackgroundColor },
+        new ToolbarItemModel() { Command = ToolbarCommand.LowerCase },
+        new ToolbarItemModel() { Command = ToolbarCommand.UpperCase },
+        new ToolbarItemModel() { Command = ToolbarCommand.SuperScript },
+        new ToolbarItemModel() { Command = ToolbarCommand.SubScript },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.Formats },
+        new ToolbarItemModel() { Command = ToolbarCommand.Alignments },
+        new ToolbarItemModel() { Command = ToolbarCommand.NumberFormatList },
+        new ToolbarItemModel() { Command = ToolbarCommand.BulletFormatList },
+        new ToolbarItemModel() { Command = ToolbarCommand.Outdent },
+        new ToolbarItemModel() { Command = ToolbarCommand.Indent },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.CreateLink },
+        new ToolbarItemModel() { Command = ToolbarCommand.Image },
+        new ToolbarItemModel() { Command = ToolbarCommand.CreateTable },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.ClearFormat },
+        new ToolbarItemModel() { Command = ToolbarCommand.Print },
+        new ToolbarItemModel() { Command = ToolbarCommand.SourceCode },
+        new ToolbarItemModel() { Command = ToolbarCommand.FullScreen },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.Undo },
+        new ToolbarItemModel() { Command = ToolbarCommand.Redo }
+    };
+
+    public void OnChange(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, ComboFields> args)
+    {
+        this.ChangeValue = args.ItemData?.Text!;
+    }
+
+    public async Task OnChangeStatus(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, ComboFields> args)
+    {
+        this.ChangeValueStatus = args.ItemData?.Text!;
+        StudFeeRegister = (await StudentService.GetStudentFeeRegister(CmbAccYear, BranchID, FromDate.ToString("MM/dd/yyyy"), ToDate.ToString("MM/dd/yyyy"), ComboBoxValueStatus, ComboBoxValue))!.ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    public string CmbAccYear = "";
+    public IList<dtStudentFeeRegister> StudFeeRegister = new List<dtStudentFeeRegister>();
+    public List<dtStudentFeeRegister> FeeRegister = new List<dtStudentFeeRegister>();
+    dtStudentFeeRegister objStudentFeeRegister = new dtStudentFeeRegister();
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+
+    public IList<SchoolAcademicYear> ActivityStartDate = new List<SchoolAcademicYear>();
+    SchoolAcademicYear activitystartdate = new SchoolAcademicYear();
+    public DateTime cmbActivityStartDate;
+    public DateTime FromDate = DateTime.Now;
+
+    public IList<SchoolAcademicYear> ActivityEndDate = new List<SchoolAcademicYear>();
+    SchoolAcademicYear activityenddate = new SchoolAcademicYear();
+    public DateTime cmbActivityEndDate;
+    public DateTime ToDate = DateTime.Now;
+
+    UserRights objUserRight = new UserRights();
+    DtoLoginModel info = new DtoLoginModel();
+
+    public SchoolParentMaster DTParent = new SchoolParentMaster();
+
+    public SchoolMailTemplate DTMailTemplate = new SchoolMailTemplate();
+    SfComboBox<string, SchoolMailTemplate>? SfTemplateObj;
+    public IList<SchoolMailTemplate> TemplateValue = new List<SchoolMailTemplate>();
+
+    private int saveInterval { get; set; } = 5000;
+
+    protected override void OnInitialized()
+    {
+        EmailBody = HttpUtility.HtmlDecode(DTMailTemplate.Description);
+    }
+
+    public async Task Go_Click()
+    {
+        if (Category == "Administrator")
+        {
+            AllowOpen = true;
+            Open = false;
+            HomeLoad = 1;
+            StudFeeRegister = (await StudentService.GetStudentFeeRegister(CmbAccYear, BranchID, FromDate.ToString("MM/dd/yyyy"), ToDate.ToString("MM/dd/yyyy"), ComboBoxValueStatus, ComboBoxValue))!.ToList();
+            HomeLoad = 0;
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "StudentFeeRegister", "Students", BranchID))!;
+
+                if (objUserRight.AccessDenied == true)
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+                else if (objUserRight.AllowOpen == true)
+                {
+                    AllowOpen = true;
+                    Open = false;
+                    HomeLoad = 1;
+                    StudFeeRegister = (await StudentService.GetStudentFeeRegister(CmbAccYear, BranchID, FromDate.ToString("MM/dd/yyyy"), ToDate.ToString("MM/dd/yyyy"), ComboBoxValueStatus, ComboBoxValue))!.ToList();
+                    HomeLoad = 0;
+                }
+                else
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                AllowOpen = false;
+                Open = true;
+            }
+        }
+    }
+
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Layout.VersionChecker();
+        // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+        // user = await SessionStorage.GetItemAsync<int>("UserID");
+        // Category = await SessionStorage.GetItemAsync<string>("Category");
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = (int)info.UserID!;
+            BranchID = (int)info.BranchID!;
+            Category = info.Category!;
+        }
+        CompanyCode = await SessionStorage.GetItemAsync<string>("Company");
+
+        MobileWidth = await SessionStorage.GetItemAsync<decimal>("MobileWidth");
+        var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 240).ToString() + "px";
+
+        CmbYear = (await StudentService.GetAcademicYear(BranchID))!.ToList();
+        objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+        CmbAccYear = objAccYear.AcademicYear!.ToString();
+        FromDate = Convert.ToDateTime(objAccYear.StartDate.ToString());
+        DateTime NextDate = Convert.ToDateTime(objAccYear.StartDate.ToString()).AddYears(1);
+        ToDate = NextDate.AddDays(-1);
+        TemplateValue = (await StudentService.GetMailTemplate("FeeBalanceReminder", BranchID))!.ToList();
+    }
+
+    public void ExcelExport()
+    {
+        this.gv_StudentFeeRegister!.ExportToExcelAsync();
+    }
+    public void ExportPdf()
+    {
+        this.gv_StudentFeeRegister!.ExportToPdfAsync();
+    }
+    public void ToolbarClick(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Id == "gv_StudentFeeRegister_pdfexport")
+        {
+            this.gv_StudentFeeRegister!.ExportToPdfAsync();
+        }
+        else if (args.Item.Id == "gv_StudentFeeRegister_excelexport")
+        {
+            this.gv_StudentFeeRegister!.ExportToExcelAsync();
+        }
+    }
+
+    async Task PostStudent(int AccountID)
+    {
+        navigationManager.NavigateTo("Post/" + AccountID, true);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void ShowColumnChooser()
+    {
+        if (ChangeValue == "Default")
+        {
+            this.gv_StudentFeeRegister!.OpenColumnChooserAsync(200, 50);
+        }
+    }
+
+    SfTextBox? search;
+    public void OnSearch(Syncfusion.Blazor.Inputs.ChangedEventArgs args)
+    {
+        if (args.Value != null)
+        {
+            if (ChangeValue == "Default")
+            {
+                gv_StudentFeeRegister!.SearchAsync(args.Value);
+                this.StateHasChanged();
+            }
+        }
+    }
+
+    public void onCreateSearch()
+    {
+        this.search!.AddIconAsync("append", "e-upload-picture");
+
+    }
+    public void OnInput(InputEventArgs args)
+    {
+        this.gv_StudentFeeRegister!.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+
+    public async Task BtnPrint()
+    {
+        var Data = await gv_StudentFeeRegister!.GetFilteredRecordsAsync();
+        DataSource dt = new DataSource();
+        dt.DataSet1 = new List<ExpandoObject>();
+        dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(Data));
+        dt.ReportName = "StudentFeeRegister";
+
+        var Result = await _BoldReport.GetReport(dt);
+        // System.IO.MemoryStream ms = new System.IO.MemoryStream();
+        // Result.FileStream.CopyTo(ms);
+        await JsRuntime.InvokeVoidAsync("jsSaveAsFile", "OutStandingFeeDetails.pdf", Convert.ToBase64String(Result.ToArray()));
+    }
+
+    public async Task Reminder_Click()
+    {
+        this.PopupFeeReminder = true;
+        Message = "";
+        Subject = "Fee Reminder";
+        EmailBody = "";
+        DTMailTemplate.Value = "";
+        StudentCount = gv_StudentFeeRegister!.SelectedRecords.Count + " Students selected";
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected async Task Send_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? Do you want to send mail");
+        if (confirmed)
+        {
+            FeeRegister = new List<dtStudentFeeRegister>();
+            FeeRegister = gv_StudentFeeRegister!.SelectedRecords;
+            PopupLoading = true;
+            MailType = (await StudentMasterService.GetMailType(BranchID));
+
+            foreach (dtStudentFeeRegister dt in FeeRegister)
+            {
+                try
+                {
+                    if (MailType == "AWS")
+                    {
+                        await AWSsendMail(dt);
+                        if (sendResponse == 1)
+                        {
+                            PopupLoading = false;
+                            Message = "Fee Reminder Successfully sent to the Parent";
+                        }
+                        else
+                        {
+                            PopupLoading = false;
+                            Message = "Email sending failed";
+                        }
+                    }
+                    else
+                    {
+                        await sendMail(dt);
+                        if (sendResponse == 1)
+                        {
+                            PopupLoading = false;
+                            Message = "Fee Reminder Successfully sent to the Parent";
+                        }
+                        else
+                        {
+                            PopupLoading = false;
+                            Message = "Email sending failed";
+                        }
+                    }
+                }
+                catch
+                {
+                    PopupLoading = false;
+                    Message = "Email sending failed";
+                }
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task sendMail(dtStudentFeeRegister dt)
+    {
+        try
+        {
+            object EmailBranchwise = (await StudentMasterService.BindSettingsValue("EmailBranchwise"));
+            if (Convert.ToBoolean(EmailBranchwise) == true)
+            {
+                GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailFromAddress' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+                GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailSmtpServer' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"smtp.Gmail.Com";
+                GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='SMTPPort' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"587";
+                Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailPassword' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+            }
+            else
+            {
+                GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailFromAddress'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+                GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailSmtpServer'"))!).ToString()).Value; //"smtp.Gmail.Com";
+                GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMTPPort'"))!).ToString()).Value; //"587";
+                Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailPassword'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+            }
+
+            string GetCompanyName = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select CompanyName from Company where ID='" + BranchID + "'"))!).ToString()).CompanyName;
+
+            if (CompanyCode == "SVS")
+                GetPwd = "svs@112243";
+            else
+                GetPwd = accService.PasswordDecode(Pwd);
+
+            string Amount = AmountInWords.ConvertAmount(Convert.ToDouble(dt.Balance), " AED", "Fils");
+            string MailBody = EmailBody!.Replace("%StudentName%", dt.AccountName).Replace("%Code%", dt.AccountCode).Replace("%Class%", dt.Class).Replace("%Sec%", dt.Division).Replace("%AcademicYear%", dt.AcademicYear).Replace("%Balance%", dt.Balance.ToString("0.00") + " AED").Replace("%AmountInWords%", Amount);
+
+            DtoEmailSettings EmailDetails = new DtoEmailSettings();
+            EmailDetails.GetHost = GetHost;
+            EmailDetails.GetPort = GetPort;
+            EmailDetails.GetFromUser = GetFromUser;
+            EmailDetails.GetPwd = GetPwd;
+            EmailDetails.GetCompanyName = GetCompanyName;
+            if (dt.Email != null)
+                EmailDetails.To = dt.Email;
+            EmailDetails.Cc = GetFromUser;
+            EmailDetails.Subject = "(no-reply)" + Subject;
+            EmailDetails.Body = MailBody;
+            var send = await sendmailService.SendEmail(EmailDetails);
+            sendResponse = send;
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task AWSsendMail(dtStudentFeeRegister dt)
+    {
+        // try
+        // {
+        //     object EmailBranchwise = (await StudentMasterService.BindSettingsValue("EmailBranchwise"));
+        //     if (Convert.ToBoolean(EmailBranchwise) == true)
+        //     {
+        //         GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailFromAddress' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+        //         GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailSmtpServer' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"smtp.Gmail.Com";
+        //         GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='SMTPPort' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"587";
+        //         Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailPassword' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+        //         GetUsername = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailUserName' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+        //         GetMailBCC = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Col_EmailSettings where Category ='MailBCC' and BranchID='" + BranchID + "'"))!).ToString()).Value;
+        //         SourceCon = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Description from MasterMisc where Source ='appsettings'"))!).ToString()).Description;
+        //     }
+        //     else
+        //     {
+        //         GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailFromAddress'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+        //         GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailSmtpServer'"))!).ToString()).Value; //"smtp.Gmail.Com";
+        //         GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMTPPort'"))!).ToString()).Value; //"587";
+        //         Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailPassword'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+        //     }
+
+        //     string GetCompanyName = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select CompanyName from Company where ID='" + BranchID + "'"))!).ToString()).CompanyName;
+
+        //     if (CompanyCode == "SVS")
+        //         GetPwd = "svs@112243";
+        //     else
+        //         GetPwd = accService.PasswordDecode(Pwd);
+
+        //     Security _security = new Security();
+        //     string StudentUrl = _security.Encrypt("ID=" + dt.AccountID + "&BranchID=" + BranchID + "&FromDate=" + FromDate.ToString("MM/dd/yyyy") + "&ToDate=" + ToDate.ToString("MM/dd/yyyy") + "&Source=" + SourceCon);
+
+        //     string Amount = AmountInWords.ConvertAmount(Convert.ToDouble(dt.Balance), " AED", "Fils");
+        //     string MailBody = EmailBody!.Replace("%StudentName%", dt.AccountName).Replace("%Code%", dt.AccountCode).Replace("%Class%", dt.Class).Replace("%Sec%", dt.Division).Replace("%AcademicYear%", dt.AcademicYear).Replace("%Balance%", dt.Balance.ToString("0.00") + " AED").Replace("%AmountInWords%", Amount).Replace("%StudentUrl%", StudentUrl);
+
+        //     DtoEmailSettings EmailDetails = new DtoEmailSettings();
+        //     EmailDetails.GetHost = GetHost;
+        //     EmailDetails.GetPort = GetPort;
+        //     EmailDetails.GetFromUser = GetFromUser;
+        //     EmailDetails.GetPwd = GetPwd;
+        //     EmailDetails.GetCompanyName = GetCompanyName;
+        //     EmailDetails.GetUsername = GetUsername;
+        //     if (dt.Email != null)
+        //         EmailDetails.To = dt.Email;
+        //     EmailDetails.Bcc = GetMailBCC;
+        //     EmailDetails.Subject = Subject;
+        //     EmailDetails.Body = MailBody;
+        //     var send = await sendmailService.AWSSendMail(EmailDetails);
+        //     sendResponse = send;
+        // }
+        // catch (Exception ex)
+        // {
+        //     throw ex;
+        // }
+    }
+
+    public async Task SelectedTemplateChanged(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, SchoolMailTemplate> arg)
+    {
+        try
+        {
+            if (arg.ItemData != null)
+            {
+                DTMailTemplate.Value = arg.ItemData.Value;
+                DTMailTemplate.Description = arg.ItemData.Description;
+                EmailBody = DTMailTemplate.Description;
+                if (DTMailTemplate.Value == "Notice Regarding Delayed Fee Submission")
+                    Subject = "Notice Regarding Delayed Fee Submission";
+                else
+                    Subject = "Fee Reminder";
+                OnInitialized();
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                //DTParentAccount.AccountName = DTParentAccount.AccountName;
+            }
+        }
+        catch (Exception Ex)
+        {
+            Console.WriteLine(Ex);
+        }
+    }
+
+    public async Task ReminderSMS_Click()
+    {
+        this.PopupFeeReminderSMS = true;
+        SMSMessage = "";
+        SMSBody = (await StudentService.GetSMSTemplate(BranchID));
+        StudentCount = gv_StudentFeeRegister!.SelectedRecords.Count + " Students selected";
+    }
+
+    protected async Task SendSMS_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? Do you want to send SMS");
+        if (confirmed)
+        {
+            FeeRegister = new List<dtStudentFeeRegister>();
+            FeeRegister = gv_StudentFeeRegister!.SelectedRecords;
+            PopupLoading = true;
+
+            try
+            {
+                await sendSMS(FeeRegister);
+                PopupLoading = false;
+            }
+            catch
+            {
+                PopupLoading = false;
+                Message = "SMS sending failed";
+            }
+            Message = "Fee Reminder SMS Successfully sent to the Parent";
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task sendSMS(List<dtStudentFeeRegister> dtSelected)
+    {
+        // string? response, smsUserId, SMSUrl, SenderID, SMSPassword = "";
+        string? SenderID, SMSPassword = "";
+        //try
+        //{
+        //SMSUrl = "http://51.210.118.93:8080/websmpp/websms";
+        BranchID = int.Parse(await SessionStorage.GetItemAsync<string>("BranchID"));
+        //int f = 0;
+        SMSUserID = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMSUserID'"))!).ToString()).Value;
+        //"habitatjurf";
+        SMSPassword = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMSPassword'"))!).ToString()).Value; //"habi2222";
+        SenderID = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMSSenderid'"))!).ToString()).Value; //"habi2222";
+                                                                                                                                                                         //string LoginUrl = JsonConvert.DeserializeObject(((dynamic)await dboService.GetScalar(" select Description from MasterMisc where Source = 'StudentLogin'")).ToString()).Value;
+        foreach (dtStudentFeeRegister dt in dtSelected)
+        {
+
+            string str2 = dt.Mobile!.ToString().Replace(" ", "").Replace("-", "").Replace("/", "").Replace("\\", "");
+            //  string str2 = "0556465283";
+            if (str2.StartsWith("+"))
+                str2 = str2.Replace("+", "");
+            if (str2.StartsWith("05") & str2.Length == 10)
+                str2 = "971" + str2.Substring(1, 9);
+            else if (!(str2.StartsWith("971") & str2.Length == 12))
+            {
+                if (str2.StartsWith("00971") & str2.Length == 14)
+                    str2 = str2.Substring(2, 10);
+                else if (str2.StartsWith("0971") & str2.Length == 14)
+                    str2 = str2.Substring(1, 10);
+            }
+
+            string txtMessage1 = "";
+            //txtMessage1 = "Congratulations! Your ward " + dt.AccountName + " is selected for the academic year 2023-24. Please login to the online portal and complete the admission form." +//Environment.NewLine+
+            // "  Url:" + LoginUrl + "" + //Environment.NewLine +
+            // "  Username:" + dt.SlNo.Trim() + "" +// Environment.NewLine +
+            // "  Password: " + dt.SlNo.Trim() + dt.StudentName.Trim().Substring(0, 2).ToUpper() + "";
+            txtMessage1 = SMSBody!;
+
+            if (str2 == null)
+            {
+                str2 = dt.MotherMobile!;
+            }
+
+
+            string url = "http://habitatschool.w2wts.com/API_SendSMS.aspx?User=" + SMSUserID + "&passwd=" + SMSPassword + "&mobilenumber=" + str2 + "&message=" + txtMessage1 + "& sid" + SenderID + "&mtype=N&DR=N";
+            Uri uri = new Uri(url);
+            WebRequest req = WebRequest.Create(uri);
+            req.ContentType = "Json";
+            req.Method = "GET";
+            if (str2 != null)
+            {
+                WebResponse response1 = req.GetResponse();
+                Stream dataStream = response1.GetResponseStream();
+                StreamReader reader = new StreamReader(dataStream);
+                string jsonString = reader.ReadToEnd();
+            }
+            //response = "Success";
+            // lblMsg = "SMS sent Successfully";
+            // this.Visibility = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+}

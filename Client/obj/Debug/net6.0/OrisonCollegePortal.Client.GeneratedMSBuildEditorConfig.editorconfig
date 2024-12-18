@@ -1,0 +1,163 @@
+is_global = true
+build_property.EnableAotAnalyzer = 
+build_property.EnableSingleFileAnalyzer = 
+build_property.EnableTrimAnalyzer = false
+build_property.IncludeAllContentForSelfExtract = 
+build_property.TargetFramework = net6.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = false
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = browser
+build_property.RootNamespace = OrisonCollegePortal.Client
+build_property.RootNamespace = OrisonCollegePortal.Client
+build_property.ProjectDir = E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Client\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 6.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Client
+build_property._RazorSourceGeneratorDebug = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/App.razor]
+build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/AutoLogin.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQXV0b0xvZ2luLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Counter.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ291bnRlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/ErrorHandler/PageNotFound.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXJyb3JIYW5kbGVyXFBhZ2VOb3RGb3VuZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/ErrorHandler/ToastComponent.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXJyb3JIYW5kbGVyXFRvYXN0Q29tcG9uZW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/FetchData.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmV0Y2hEYXRhLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/FeeConflict.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEZlZUNvbmZsaWN0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/FeePost.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEZlZVBvc3QucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/FeeWiseRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEZlZVdpc2VSZWdpc3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/LinkGeneration.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXExpbmtHZW5lcmF0aW9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/ParentFee.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFBhcmVudEZlZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/StudentFeesRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFN0dWRlbnRGZWVzUmVnaXN0ZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/StudentStatement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFN0dWRlbnRTdGF0ZW1lbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Financial/TermFeeRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFRlcm1GZWVSZWdpc3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Home/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSG9tZVxIb21lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Index.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXgucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Loading/LoadingScreen.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTG9hZGluZ1xMb2FkaW5nU2NyZWVuLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTG9naW4ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/AdditionalFeeMaster.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xBZGRpdGlvbmFsRmVlTWFzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/AdditionalPayment.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xBZGRpdGlvbmFsUGF5bWVudC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/Discount.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xEaXNjb3VudC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/FeeMaster.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xGZWVNYXN0ZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/FeeSchedule.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xGZWVTY2hlZHVsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/FeeScheduleRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xGZWVTY2hlZHVsZVJlZ2lzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/MiscellaneousMaster.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xNaXNjZWxsYW5lb3VzTWFzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Masters/StudentMasterNew.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWFzdGVyc1xTdHVkZW50TWFzdGVyTmV3LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Redirect.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVkaXJlY3QucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Registers/StudentFeeRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVnaXN0ZXJzXFN0dWRlbnRGZWVSZWdpc3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Pages/Registers/StudentRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVnaXN0ZXJzXFN0dWRlbnRSZWdpc3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Shared/LoginLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXExvZ2luTGF5b3V0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Shared/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXE1haW5MYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Shared/SurveyPrompt.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFN1cnZleVByb21wdC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = X0ltcG9ydHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Shared/MainLayoutOld.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXE1haW5MYXlvdXRPbGQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-disnmijwg5
+
+[E:/CollegePortalWASM/OrisonCollegePortal/OrisonCollegePortal/Client/Shared/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXE5hdk1lbnUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-qbd8441vvs

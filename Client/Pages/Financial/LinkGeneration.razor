@@ -1,0 +1,1112 @@
+﻿@page "/LinkGeneration"
+
+@using Newtonsoft.Json.Linq;
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities.PaymentLink;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Popups;
+@using Syncfusion.Blazor.RichTextEditor
+@using Microsoft.Extensions.Localization
+@using Microsoft.Extensions.Configuration
+@using System.Collections.ObjectModel
+@using System.Data;
+@using System.Net;
+@using System.IO;
+@using System.Text;
+@using System.Web;
+@using System.Dynamic;
+@using System.Net.Http.Json;
+
+@inject HttpClient Http
+@inject ToastService ToastService
+@* @inject IConfiguration _config *@
+@inject IJSRuntime JsRuntime
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Services.clsDBOperationService dboService
+@inject OrisonCollegePortal.Client.Contracts.PaymentLink.ILinkGeneration LinkGenerationService
+@inject OrisonCollegePortal.Client.Services.GeneralServices generalServ
+@inject OrisonCollegePortal.Client.Services.AccountService accService
+@inject OrisonCollegePortal.Client.Services.PaymentService paymentServ
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentFeeManager StudentFeeService
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <link href="css/Loader.css" rel="stylesheet" />
+</head>
+
+@if (AllowOpen == true)
+{
+    <div>
+        <div class="box-card-shadow">
+            <div class="row">
+                <div class="col-md-9">
+                </div>
+                <div class="col-md-3">
+                    <div class="header-div-style">
+                        <label class="header-label">@Localizer["PAYMENT LINK GENERATION"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box-card-shadow">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="label">@Localizer["Program"]</label>
+                    <SfComboBox TValue="string" TItem="SchoolClassMaster" @bind-Value="@txtClass" DataSource="Class" AllowFiltering="true">
+                        <ComboBoxFieldSettings Text="Class" Value="Class"></ComboBoxFieldSettings>
+                        <ComboBoxEvents TValue="string" TItem="SchoolClassMaster" ValueChange="@SelectedClassChanged"></ComboBoxEvents>
+                    </SfComboBox>
+                </div>
+                <div class="col-md-3">
+                    <label class="label">@Localizer["Programme Year"]</label>
+                    <SfComboBox TValue="string" TItem="SchoolClass" @bind-Value="@txtDivision" DataSource="Division" AllowFiltering="true">
+                        <ComboBoxFieldSettings Text="Division" Value="Division"></ComboBoxFieldSettings>
+                    </SfComboBox>
+                </div>
+
+                <div class="col-md-1" style="padding-top:13px">
+                    <SfButton IconCss="Icon search" @onclick="@Search_Click" title="Search" CssClass="e-btn e-btn7" Content=@Localizer["Search"]></SfButton>
+                </div>
+                <div class="col-md-3" style="padding-top:13px">
+                    <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="220px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                </div>
+            </div>
+        </div>
+
+        <div class="box-card-shadow">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="label">@Localizer["Purpose"]</label>
+                    <SfComboBox TValue="string" TItem="NexopayPurpose" @bind-Value="@txtPurpose" DataSource="Purpose" AllowFiltering="true">
+                        <ComboBoxFieldSettings Text="Purpose" Value="Purpose"></ComboBoxFieldSettings>
+                        <ComboBoxEvents TValue="string" TItem="NexopayPurpose"></ComboBoxEvents>
+                    </SfComboBox>
+                </div>
+                <div class="col-md-3">
+                    <label class="label">@Localizer["Amount"]</label>
+                    <SfNumericTextBox @bind-Value="@txtAmount" CssClass="textbox" ShowSpinButton=false></SfNumericTextBox>
+                </div>
+                <div class="col-md-1" style="padding-top:13px">
+                    <SfButton @onclick="@GenerateLink_Click" title="Generate Link" CssClass="e-btn e-btn5" Content=@Localizer["Generate Link"]></SfButton>
+                </div>
+                <div class="col-md-3" style="padding-top:13px">
+                    @if (btnEmail.Visible == true)
+                    {
+                        <SfButton IconCss="Icon email" Content=@Localizer["Email"] title="Email" OnClick="@(async () => await Email_click())" />
+                    }
+                    @if (btnSMS.Visible == true)
+                    {
+                        <SfButton IconCss="Icon sms" Content=@Localizer["SMS"] title="SMS" OnClick="@(async () => await SMS_click())" />
+                    }
+                    @if (btnWhatsApp.Visible == true)
+                    {
+                        <SfButton IconCss="Icon whatsapp" CssClass="e-btn e-btn5" Content=@Localizer["WhatsApp"] title="WhatsApp" OnClick="@(async () => await WhatsApp_click())" />
+                    }
+                </div>
+                <div div class="col-md-2" style="padding-top:13px">
+                    <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true" AutoHideDelay="10000">
+                        Link Copied <a><i class="fa fa-check" aria-hidden="true"></i></a>
+                    </BlazorStrap.BSAlert>
+                </div>
+            </div>
+            <div style="padding-top:12px">
+                @if (loading == true)
+                {
+                    @if (StudentRegister == null)
+                    {
+                        <p><em>Loading...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="@StudentRegister" ID="gv_studentRegister" @ref="gv_studentRegister"
+                                GridLines="GridLine.Both"
+                                AllowFiltering="true"
+                                AllowPaging="false"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                Height="@GridHeight"
+                                Width="100%"
+                                ShowColumnChooser="true"
+                                AllowResizing="true"
+                                AllowSorting="true"
+                                EnableAltRow="true"
+                                RowHeight="25">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridPageSettings PageSize="50"></GridPageSettings>
+                            <GridEditSettings AllowAdding="true" AllowDeleting="true" AllowEditing="true" NewRowPosition="NewRowPosition.Bottom" Mode="EditMode.Normal"></GridEditSettings>
+                            <GridSelectionSettings PersistSelection="true" CheckboxOnly="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Row" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple" EnableToggle=true></GridSelectionSettings>
+                            <GridColumns>
+                                <GridColumn Type="ColumnType.CheckBox" AllowFiltering="false" AllowSorting="false" Index="0" Width="35">
+                                </GridColumn>
+                                <GridColumn Width="45px" HeaderText="Copy">
+                                    <Template Context="MasterContext">
+                                        @{
+                                            var PaymentLink = (MasterContext as dtStudentRegister)!.PayerCompany;
+                                            <a @onclick="@(() => { return Copy(PaymentLink!); })" title="Copy Link"><img src="Images/icons8-copy-96.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.AccountID) IsPrimaryKey="true" HeaderText="AccountID" Width="120" Visible="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.AccountCode) HeaderText=@Localizer["Student Code"] Width="110" AllowEditing="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.AccountName) HeaderText=@Localizer["Student Name"] Width="200" AllowEditing="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.Class) HeaderText=@Localizer["Class"] Width="90" AllowEditing="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.Division) HeaderText=@Localizer["Division"] Width="90" AllowEditing="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.ParentCode) HeaderText=@Localizer["Parent Code"] Width="100" AllowEditing="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.ParentName) HeaderText=@Localizer["Parent Name"] Width="180" AllowEditing="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.Mobile) HeaderText=@Localizer["Mobile"] Width="120"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.Email) HeaderText=@Localizer["Email"] Width="120"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentRegister.PayerCompany) HeaderText=@Localizer["Payment Link"] Width="800"></GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+                    }
+                }
+                else
+                {
+                    @*Loader Start*@
+                    <div style="padding-top:700px;">
+                        @* <div class="loader"></div> *@
+                        <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="gif/loading-waiting.gif" height="590px" width="770px" /></svg>
+                    </div>
+                    @*Loader End*@
+                }
+            </div>
+        </div>
+
+        <SfDialog Width="400" Height="200" IsModal="true" @bind-Visible="PopupWarning" CloseOnEscape="true">
+            <DialogTemplates>
+                <Content>
+                    <div style="text-align:center;">
+                        <div style="font-size: medium; color: #842029;">
+                            @Failed
+                        </div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size: medium; color: #842029;">
+                            Please check and try again !!!
+                        </div>
+                    </div>
+                </Content>
+            </DialogTemplates>
+            <DialogButtons>
+                <DialogButton Content="OK" @onclick="@(() => PopupWarning = false)" />
+            </DialogButtons>
+            <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+        </SfDialog>
+
+        <SfDialog Width="800px" IsModal="true" @bind-Visible="PopupEmail" ShowCloseIcon="true">
+            <DialogTemplates>
+                <Header>
+                    "Email"
+                </Header>
+                <Content>
+                    <div class="form-group">
+                        <div class="form-row">
+                            <label class="label">"Subject"</label>
+                            <SfTextBox CssClass="textbox" @bind-Value="@Subject"></SfTextBox>
+                        </div>
+                        <div class="form-row">
+                            <label class="label">"Template"</label>
+                            <SfComboBox TValue="string" TItem="SchoolMailTemplate" @bind-Value="@DTMailTemplate.Value" @ref="SfTemplateObj" DataSource="@TemplateValue" CssClass="e-multi-column"
+                                        AllowFiltering="true" PopupHeight="200"
+                                        EnableVirtualization="true" AllowCustom="true" Placeholder="Select">
+                                <ComboBoxFieldSettings Text="Value" Value="Value"></ComboBoxFieldSettings>
+                                <ComboBoxEvents TValue="string" TItem="SchoolMailTemplate" ValueChange="@SelectedTemplateChanged"></ComboBoxEvents>
+                            </SfComboBox>
+                        </div>
+                        <div class="form-row">
+                            <label class="label">"Body"</label>
+                            <SfRichTextEditor ID="AutoSave" SaveInterval="saveInterval" AutoSaveOnIdle="true" @bind-Value="@EmailBody">
+                                <RichTextEditorToolbarSettings Items="@Tools" Type="ToolbarType.MultiRow" Enable="true" />
+                            </SfRichTextEditor>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-row" style="padding-top: 2%;">
+                            <label style="color:green;font-size:12px">@StudentCount</label>
+                        </div>
+
+                        <div class="pt-2" style="text-align:right;">
+                            <label style="color:red;font-size:12px">@Message</label>
+                            <SfButton IconCss="Icon Mail" Content="Send" @onclick="@Send_Click" CssClass="e-btn"></SfButton>
+                            <SfButton Content="Cancel" @onclick="@(()=>PopupEmail=false)" CssClass="e-btn"></SfButton>
+                        </div>
+                    </div>
+                </Content>
+            </DialogTemplates>
+            <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+        </SfDialog>
+
+        <SfDialog Width="200px" CssClass="LoadingPop" IsModal="true" Height="200px" @bind-Visible="PopupLoading">
+            <DialogTemplates>
+                <Header>
+                </Header>
+                <Content>
+                    <div class="loader" style="background-color:transparent"></div>
+                    <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="images/BackgroundOrisonLogo.png" height="590px" width="770px" /></svg>
+                </Content>
+            </DialogTemplates>
+            <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+        </SfDialog>
+
+    </div>
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    Permission Denied
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public MainLayout? Layout { get; set; }
+    int BranchID, UserID, AccountID;
+    string? Category, AcademicYear, Con, GridHeight = "500px", txtClass, txtDivision, CompanyCode, txtPurpose, Failed, MasterCon, sessionResponse;
+    bool AllowOpen = true, Open, loading = false, PopupWarning = false, IsOpen = false, PopupEmail = false, PopupLoading = false;
+    decimal MobileWidth, txtAmount, amount;
+    SfTextBox? search;
+    string? SchoolCode;
+    string sessionID = "", JGrade = "A", ApiURL = "", ApiKey = "";
+    string? Subject, EmailBody, GetFromUser, GetPwd, GetHost, GetPort, StudentCount, Message, Pwd, MailType, GetUsername;
+    string? SMSUrl, SMSUserID, SMSPassword, SMSSenderid, SMSBody, SMSMessage;
+
+    UserRights objUserRight = new UserRights();
+    public IList<SchoolClassMaster> Class = new List<SchoolClassMaster>();
+    public IList<SchoolClass> Division = new List<SchoolClass>();
+    public SfGrid<dtStudentRegister>? gv_studentRegister { get; set; }
+    public ObservableCollection<dtStudentRegister> StudentRegister = new ObservableCollection<dtStudentRegister>();
+    public ObservableCollection<dtStudentRegister> StudRegister = new ObservableCollection<dtStudentRegister>();
+    public ObservableCollection<dtStudentRegister> StudentRegisterTemp = new ObservableCollection<dtStudentRegister>();
+    public ObservableCollection<dtStudentRegister> DTStudentRegister = new ObservableCollection<dtStudentRegister>();
+    public IList<NexopayPurpose> Purpose = new List<NexopayPurpose>();
+    public IList<StudentData> ObjStudents = new List<StudentData>();
+    public IList<StudentData> dtStudentData = new List<StudentData>();
+
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    dtoFormLabelSettings btnEmail = new dtoFormLabelSettings();
+    dtoFormLabelSettings btnSMS = new dtoFormLabelSettings();
+    dtoFormLabelSettings btnWhatsApp = new dtoFormLabelSettings();
+    public List<dtoFormLabelSettings> FormLabelList = new List<dtoFormLabelSettings>();
+    DtoLoginModel info = new DtoLoginModel();
+
+    public SchoolMailTemplate DTMailTemplate = new SchoolMailTemplate();
+    SfComboBox<string, SchoolMailTemplate>? SfTemplateObj;
+    public IList<SchoolMailTemplate> TemplateValue = new List<SchoolMailTemplate>();
+    private int saveInterval { get; set; } = 5000;
+
+    private List<ToolbarItemModel> Tools = new List<ToolbarItemModel>()
+    {
+        new ToolbarItemModel() { Command = ToolbarCommand.Bold },
+        new ToolbarItemModel() { Command = ToolbarCommand.Italic },
+        new ToolbarItemModel() { Command = ToolbarCommand.Underline },
+        new ToolbarItemModel() { Command = ToolbarCommand.StrikeThrough },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontName },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontSize },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontColor },
+        new ToolbarItemModel() { Command = ToolbarCommand.BackgroundColor },
+        new ToolbarItemModel() { Command = ToolbarCommand.LowerCase },
+        new ToolbarItemModel() { Command = ToolbarCommand.UpperCase },
+        new ToolbarItemModel() { Command = ToolbarCommand.SuperScript },
+        new ToolbarItemModel() { Command = ToolbarCommand.SubScript },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.Formats },
+        new ToolbarItemModel() { Command = ToolbarCommand.Alignments },
+        new ToolbarItemModel() { Command = ToolbarCommand.NumberFormatList },
+        new ToolbarItemModel() { Command = ToolbarCommand.BulletFormatList },
+        new ToolbarItemModel() { Command = ToolbarCommand.Outdent },
+        new ToolbarItemModel() { Command = ToolbarCommand.Indent },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.CreateLink },
+        new ToolbarItemModel() { Command = ToolbarCommand.Image },
+        new ToolbarItemModel() { Command = ToolbarCommand.CreateTable },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.ClearFormat },
+        new ToolbarItemModel() { Command = ToolbarCommand.Print },
+        new ToolbarItemModel() { Command = ToolbarCommand.SourceCode },
+        new ToolbarItemModel() { Command = ToolbarCommand.FullScreen },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.Undo },
+        new ToolbarItemModel() { Command = ToolbarCommand.Redo }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+        // UserID = await SessionStorage.GetItemAsync<int>("UserID");
+        // Category = await SessionStorage.GetItemAsync<string>("Category");
+        await Layout!.VersionChecker();
+        await GetLoginInfo();
+        if (info != null)
+        {
+            UserID = (int)info.UserID!;
+            BranchID = (int)info.BranchID!;
+            Category = info.Category;
+        }
+        CompanyCode = await SessionStorage.GetItemAsync<string>("Company");
+        AcademicYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+        //Con = await SessionStorage.GetItemAsync<string>("Con");
+        //MasterCon = _config.GetValue<string>("APIURL:MasterCon");
+        MobileWidth = await SessionStorage.GetItemAsync<decimal>("MobileWidth");
+        var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 360).ToString() + "px";
+
+        if (Category == "Administrator")
+        {
+            await LoadData();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(UserID, "PaymentLink", "Students", BranchID))!;
+                if (objUserRight.AccessDenied == true)
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+                else if (objUserRight.AllowOpen == true)
+                {
+                    await LoadData();
+                }
+                else
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                AllowOpen = false;
+                Open = true;
+            }
+        }
+    }
+
+    public async Task LoadData()
+    {
+        try
+        {
+            loading = false;
+            Class = (await StudentMasterService.GetClass(BranchID, AcademicYear!))!.ToList();
+            var customClass = new SchoolClassMaster() { Class = "All" };
+            //Class.Insert(0, customClass);
+            Class.Add(customClass);
+            Division = (await StudentMasterService.GetDivision(BranchID, AcademicYear!))!.ToList();
+            var customDivision = new SchoolClass() { Division = "All" };
+            Division.Add(customDivision);
+            // Purpose = (await LinkGenerationService.GetPurpose(MasterCon)).ToList();
+            string Key = "OrisonMaster-ORSN";
+            //string DecryptKey = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + Key.ToString());
+            string Encryptkey = await Http.GetStringAsync("API/Encryption/Encrypt?Text=" + HttpUtility.UrlEncode(Key));
+            await SessionStorage.SetItemAsync("Master_key", Encryptkey);
+            Purpose = (await LinkGenerationService.GetPurpose())!.ToList();
+            SchoolCode = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalarMaster("Select SchoolCode from Nexopay_Config where CompanyCode='" + CompanyCode + "'"))!).ToString()).SchoolCode;
+            ApiURL = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalarMaster("Select ApiURL from Nexopay_Config where CompanyCode='" + CompanyCode + "'"))!).ToString()).ApiURL;
+            ApiKey = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalarMaster("Select ApiKey from Nexopay_Config where CompanyCode='" + CompanyCode + "'"))!).ToString()).ApiKey;
+            FormLabelList = (await generalServ.GetLabels("frmPaymentLinkGeneration"))!;
+            if (FormLabelList != null)
+            {
+                btnEmail = FormLabelList.Where(a => a.LabelName == "btnEmail").FirstOrDefault()!;
+                btnSMS = FormLabelList.Where(a => a.LabelName == "btnSMS").FirstOrDefault()!;
+                btnWhatsApp = FormLabelList.Where(a => a.LabelName == "btnWhatsApp").FirstOrDefault()!;
+            }
+            loading = true;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception Ex)
+        {
+            Console.WriteLine(Ex);
+            loading = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task SelectedClassChanged()
+    {
+        Division = (await StudentMasterService.GetDivisionByClass(BranchID, txtClass!))!.ToList();
+        var customDivision = new SchoolClass() { Division = "All" };
+        Division.Add(customDivision);
+    }
+
+    public async Task Search_Click()
+    {
+        if (txtClass != null)
+        {
+            loading = false;
+            StudRegister = new ObservableCollection<dtStudentRegister>((await LinkGenerationService.GetStudentListByClass(txtClass!, AcademicYear!, BranchID))!);
+            if (txtDivision == null)
+            {
+                StudentRegister = StudRegister;
+            }
+            else
+            {
+                if (txtDivision != "All")
+                    StudentRegister = new ObservableCollection<dtStudentRegister>(StudRegister.Where(a => a.Division == txtDivision));
+                else
+                    StudentRegister = StudRegister;
+            }
+            loading = true;
+            await InvokeAsync(StateHasChanged);
+        }
+        else
+        {
+            Failed = "Please select class";
+            PopupWarning = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task GenerateLink_Click()
+    {
+        loading = false;
+        StudentRegisterTemp = new ObservableCollection<dtStudentRegister>();
+        if (!string.IsNullOrEmpty(txtPurpose))
+        {
+            if (txtAmount != Convert.ToDecimal(0.00))
+            {
+                StudRegister = new ObservableCollection<dtStudentRegister>();
+                StudRegister = new ObservableCollection<dtStudentRegister>(gv_studentRegister!.SelectedRecords);
+                if (StudRegister.Count > 0)
+                {
+                    foreach (dtStudentRegister dt in StudRegister)
+                    {
+                        try
+                        {
+                            await GenerateLink(dt);
+                        }
+                        catch (Exception Ex)
+                        {
+                            Console.WriteLine(Ex);
+                        }
+                    }
+                    StudentRegister = StudentRegisterTemp;
+                    loading = true;
+                    await InvokeAsync(StateHasChanged);
+                }
+                else
+                {
+                    Failed = "Please Select Students";
+                    PopupWarning = true;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                Failed = "Please Enter Amount";
+                PopupWarning = true;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        else
+        {
+            Failed = "Please select Purpose";
+            PopupWarning = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task GenerateLink(dtStudentRegister DTStudent)
+    {
+        var paymentUtility = new Utility();
+
+        Models.OrderRequest orderReq = new Models.OrderRequest();
+        Models.Student st = new Models.Student();
+
+        orderReq.Pt = new Models.Parent();
+        orderReq.St = new Models.Student();
+
+        try
+        {
+            AccountID = DTStudent.AccountID;
+
+            // dt = getStudentData(AccountID, SchoolCode);
+            ObjStudents = (await LinkGenerationService.GetStudentData(AccountID, SchoolCode!))!.ToList();
+            dtStudentData = ObjStudents;
+            //orderReq.SchoolCode = SchoolCode;
+            orderReq.SchoolCode = CompanyCode;
+            orderReq.StudentID = AccountID.ToString();
+            orderReq.OrderDate = DateTime.Now.ToString();
+
+            amount = Convert.ToDecimal(txtAmount);
+
+            orderReq.Amount = amount;
+            orderReq.Landing = "fee-payment-summary";
+            orderReq.Purpose = txtPurpose;
+            orderReq.Type = "registered";
+            orderReq.ConfirmURL = "https://payment.orison.school/Zendapay/Apihandler.aspx";
+
+            if (dtStudentData.Count > 0)
+            {
+
+                orderReq.Pt.PFullName = dtStudentData.FirstOrDefault()!.PName;
+                string P_fullname = dtStudentData.FirstOrDefault()!.PName!;
+                if (P_fullname!.Contains('/') || P_fullname.Contains('(') || P_fullname.Contains(')') || P_fullname.Contains('.') || P_fullname.Contains("\t") || P_fullname.Contains("  "))
+                {
+                    P_fullname = P_fullname.Replace('/', ' ').Replace('(', ' ').Replace(')', ' ').Replace('.', ' ').Replace("  ", "");
+                    orderReq.Pt.PFullName = P_fullname;
+
+                }
+                orderReq.Pt.PFirstName = dtStudentData.FirstOrDefault()!.PFirstName;
+                orderReq.Pt.PLastName = dtStudentData.FirstOrDefault()!.PLastName;
+                // orderReq.Pt.Phone = "+" + DTStudent.Mobile.ToString();
+                orderReq.Pt.Phone = DTStudent.Mobile!.ToString();
+                //orderReq.Pt.Phone = "+" + "971545125456";
+
+                string P_Phone = dtStudentData.FirstOrDefault()!.Mobile!;
+                if (P_Phone.Contains('/') || P_Phone.Contains("  ") || P_Phone.Contains("\t"))
+                {
+                    P_Phone = P_Phone.Replace('/', ' ').Replace("  ", " ").Remove('\t');
+                    orderReq.Pt.Phone = P_Phone;
+
+                }
+                orderReq.Pt.Email = DTStudent.Email;
+                //orderReq.Pt.Email = "kvmuhsina1@gmail.com";
+
+                orderReq.St.SFullName = dtStudentData.FirstOrDefault()!.SName;
+                string S_fullname = dtStudentData.FirstOrDefault()!.SName!;
+                if (S_fullname.Contains('/') || S_fullname.Contains('(') || S_fullname.Contains(')') || S_fullname.Contains('.') || S_fullname.Contains("\t") || S_fullname.Contains("  "))
+                {
+                    S_fullname = S_fullname.Replace('/', ' ').Replace('(', ' ').Replace(')', ' ').Replace('.', ' ').Replace("  ", " ");
+                    orderReq.St.SFullName = S_fullname;
+                }
+                orderReq.St.SFirstName = dtStudentData.FirstOrDefault()!.FirstName;
+                orderReq.St.SLastName = dtStudentData.FirstOrDefault()!.LastName;
+                orderReq.St.CurrentClass = dtStudentData.FirstOrDefault()!.Class + " " + dtStudentData.FirstOrDefault()!.Division;
+                orderReq.St.JoiningGrade = dtStudentData.FirstOrDefault()!.JoiningClass;
+                if (dtStudentData.FirstOrDefault()!.JoiningClass == "" || dtStudentData.FirstOrDefault()!.JoiningClass == null)
+                {
+                    orderReq.St.JoiningGrade = JGrade;
+                }
+
+                orderReq.St.DateOfJoin = dtStudentData.FirstOrDefault()!.DateOfJoin;
+                orderReq.St.AdmissionDate = dtStudentData.FirstOrDefault()!.AdmissionDate;
+                orderReq.St.Gender = dtStudentData.FirstOrDefault()!.Sex;
+                orderReq.St.Nationality = dtStudentData.FirstOrDefault()!.Nationality;
+                orderReq.St.RegisterNo = dtStudentData.FirstOrDefault()!.SCode;
+                //Session["OrderObj"] = orderReq;
+                await SessionStorage.SetItemAsync("OrderObj", orderReq);
+            }
+
+            string Request_Str = paymentUtility.CreateSession(orderReq);
+            orderReq.RequestStr = Request_Str;
+            // string sessionResponse = createSession(Request_Str).ToString()!;
+            await createSession(Request_Str);
+            orderReq.RespSession = sessionResponse;
+
+            JObject respJSON = JObject.Parse(sessionResponse!);
+
+            string paymentLink = respJSON["redirectURL"]!.ToString();
+            sessionID = respJSON["sessionId"]!.ToString();
+            orderReq.SessionID = sessionID;
+            DTStudent.PayerCompany = paymentLink;
+
+            StudentRegisterTemp.Add(DTStudent);
+
+            // ID = save_PaymentRequest(orderReq, SchoolCode);
+            HttpResponseMessage response = await LinkGenerationService.SavePaymentRequest(orderReq, SchoolCode!);
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonString = await response.Content.ReadFromJsonAsync<dtError>();
+                if (jsonString!.Error == null)
+                {
+                    await SessionStorage.SetItemAsync("ID", jsonString.ID);
+                }
+                else
+                {
+
+                }
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            // Failed = ex.Message;
+            // PopupWarning = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task createSession(string jsonContent)
+    {
+        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+        string CS_ApiURL = ApiURL + "create/session";
+        string responseFromServer = await paymentServ.webRequestCreate(CS_ApiURL, ApiKey, jsonContent)!;
+        sessionResponse = responseFromServer;
+        //return responseFromServer.ToString();
+        // HttpWebRequest request = (HttpWebRequest)WebRequest.Create(CS_ApiURL);
+        // request.Method = "POST";
+
+        // byte[] byteArray;
+        // WebResponse response;
+        // StreamReader reader;
+        // Stream dataStream;
+        // string responseFromServer;
+        // request.Headers.Add("apikey", ApiKey);
+        // byteArray = Encoding.UTF8.GetBytes(jsonContent);
+
+        // request.ContentType = "application/json";
+        // request.ContentLength = byteArray.Length;
+        // dataStream = request.GetRequestStream();
+        // dataStream.Write(byteArray, 0, byteArray.Length);
+        // dataStream.Close();
+        // response = request.GetResponse();
+        // dataStream = response.GetResponseStream();
+        // reader = new StreamReader(dataStream);
+        // responseFromServer = HttpUtility.UrlDecode(reader.ReadToEnd());
+
+        // reader.Close();
+        // dataStream.Close();
+        // response.Close();
+        //return responseFromServer;
+    }
+
+    public void OnInput(InputEventArgs args)
+    {
+        this.gv_studentRegister!.SearchAsync(args.Value);
+    }
+
+    public async Task Copy(string PaymentLink)
+    {
+        await JsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", PaymentLink);
+        IsOpen = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Email_click()
+    {
+        this.PopupEmail = true;
+        Message = "";
+        Subject = "Student Payment Link";
+        EmailBody = "";
+        DTMailTemplate.Value = "";
+        TemplateValue = (await StudentFeeService.GetMailTemplate("PaymentLink", BranchID))!.ToList();
+        StudentCount = gv_studentRegister!.SelectedRecords.Count + " Students selected";
+    }
+
+    public async Task SelectedTemplateChanged(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, SchoolMailTemplate> arg)
+    {
+        try
+        {
+            if (arg.ItemData != null)
+            {
+                DTMailTemplate.Value = arg.ItemData.Value;
+                DTMailTemplate.Description = arg.ItemData.Description;
+                EmailBody = DTMailTemplate.Description;
+                OnInitialized();
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                //DTParentAccount.AccountName = DTParentAccount.AccountName;
+            }
+        }
+        catch (Exception Ex)
+        {
+            Console.WriteLine(Ex);
+        }
+    }
+
+    protected async Task Send_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? Do you want to send mail");
+        if (confirmed)
+        {
+            DTStudentRegister = new ObservableCollection<dtStudentRegister>();
+            DTStudentRegister = new ObservableCollection<dtStudentRegister>(gv_studentRegister!.SelectedRecords);
+            PopupLoading = true;
+            MailType = (await StudentMasterService.GetMailType(BranchID));
+
+            foreach (dtStudentRegister dt in DTStudentRegister)
+            {
+                try
+                {
+                    if (MailType == "AWS")
+                        await AWSsendMail(dt);
+                    else
+                        await sendMail(dt);
+                    PopupLoading = false;
+                    Message = "Email Successfully sent to the Parent";
+                }
+                catch
+                {
+                    PopupLoading = false;
+                    Message = "Email sending failed";
+                }
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task sendMail(dtStudentRegister DTStudentList)
+    {
+        try
+        {
+            object EmailBranchwise = (await StudentMasterService.BindSettingsValue("EmailBranchwise"));
+            if (Convert.ToBoolean(EmailBranchwise) == true)
+            {
+                GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='MailFromAddress' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+                GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='MailSmtpServer' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"smtp.Gmail.Com";
+                GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='SMTPPort' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"587";
+                Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='MailPassword' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+            }
+            else
+            {
+                GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailFromAddress'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+                GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailSmtpServer'"))!).ToString()).Value; //"smtp.Gmail.Com";
+                GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMTPPort'"))!).ToString()).Value; //"587";
+                Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailPassword'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+            }
+
+            string GetCompanyName = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select CompanyName from Company where ID='" + BranchID + "'"))!).ToString()).CompanyName;
+
+            if (CompanyCode == "SVS")
+                GetPwd = "svs@112243";
+            else
+                GetPwd = accService.PasswordDecode(Pwd);
+
+            System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage();
+            System.Net.Mail.SmtpClient SmtpClient = new System.Net.Mail.SmtpClient();
+            object HOST = GetHost;
+
+            mail.IsBodyHtml = true;
+            mail.BodyEncoding = System.Text.Encoding.UTF8;
+            SmtpClient.UseDefaultCredentials = true;
+            SmtpClient.Port = Convert.ToInt32(GetPort);
+            SmtpClient.Host = HOST.ToString()!;
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+           | SecurityProtocolType.Tls11
+           | SecurityProtocolType.Tls12;
+
+            mail.From = new System.Net.Mail.MailAddress(GetFromUser, GetCompanyName);
+            if (DTStudentList.Email != null)
+                mail.To.Add(DTStudentList.Email);
+
+            //mail.CC.Add(GetFromUser);
+            mail.Bcc.Add(GetFromUser);
+            mail.Subject = "(no-reply)" + Subject;
+            string MailBody = EmailBody!.Replace("%StudentName%", DTStudentList.AccountName).Replace("%Code%", DTStudentList.AccountCode).Replace("%Class%", DTStudentList.Class).Replace("%Sec%", DTStudentList.Division).Replace("%AcademicYear%", DTStudentList.AcademicYear).Replace("%ParentName%", DTStudentList.ParentName).Replace("%Link%", DTStudentList.PayerCompany);
+            mail.Body = MailBody;
+
+            using (var client = new System.Net.Mail.SmtpClient(HOST.ToString(), Convert.ToInt32(GetPort)))
+            {
+                System.Net.NetworkCredential netCredential = new System.Net.NetworkCredential(GetFromUser, GetPwd);
+                client.Credentials = netCredential;
+                client.EnableSsl = true;
+                client.Send(mail);
+            }
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task AWSsendMail(dtStudentRegister DTStudentList)
+    {
+        try
+        {
+            object EmailBranchwise = (await StudentMasterService.BindSettingsValue("EmailBranchwise"));
+            if (Convert.ToBoolean(EmailBranchwise) == true)
+            {
+                GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='MailFromAddress' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+                GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='MailSmtpServer' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"smtp.Gmail.Com";
+                GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='SMTPPort' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"587";
+                Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='MailPassword' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+                GetUsername = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from School_EmailSettings where Category ='MailUserName' and BranchID='" + BranchID + "'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+            }
+            else
+            {
+                GetFromUser = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailFromAddress'"))!).ToString()).Value; //"Notification.Habitat@gmail.Com";
+                GetHost = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailSmtpServer'"))!).ToString()).Value; //"smtp.Gmail.Com";
+                GetPort = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMTPPort'"))!).ToString()).Value; //"587";
+                Pwd = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='MailPassword'"))!).ToString()).Value; //"eiujdvcutbbahoae";
+            }
+
+            string GetCompanyName = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select CompanyName from Company where ID='" + BranchID + "'"))!).ToString()).CompanyName;
+
+            if (CompanyCode == "SVS")
+                GetPwd = "svs@112243";
+            else
+                GetPwd = accService.PasswordDecode(Pwd);
+
+            System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage();
+            System.Net.Mail.SmtpClient SmtpClient = new System.Net.Mail.SmtpClient();
+            object HOST = GetHost;
+
+            mail.IsBodyHtml = true;
+            mail.BodyEncoding = System.Text.Encoding.UTF8;
+            SmtpClient.UseDefaultCredentials = true;
+            SmtpClient.Port = Convert.ToInt32(GetPort);
+            SmtpClient.Host = HOST.ToString()!;
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+           | SecurityProtocolType.Tls11
+           | SecurityProtocolType.Tls12;
+
+            mail.From = new System.Net.Mail.MailAddress(GetFromUser, GetCompanyName);
+            if (DTStudentList.Email != null)
+                mail.To.Add(DTStudentList.Email);
+
+            mail.Bcc.Add(GetFromUser);
+            mail.Subject = Subject;
+            string MailBody = EmailBody!.Replace("%StudentName%", DTStudentList.AccountName).Replace("%Code%", DTStudentList.AccountCode).Replace("%Class%", DTStudentList.Class).Replace("%Sec%", DTStudentList.Division).Replace("%AcademicYear%", DTStudentList.AcademicYear).Replace("%ParentName%", DTStudentList.ParentName).Replace("%Link%", DTStudentList.PayerCompany);
+            mail.Body = MailBody;
+
+            using (var client = new System.Net.Mail.SmtpClient(HOST.ToString(), Convert.ToInt32(GetPort)))
+            {
+                System.Net.NetworkCredential netCredential = new System.Net.NetworkCredential(GetUsername, GetPwd);
+                client.Credentials = netCredential;
+                client.EnableSsl = true;
+                client.Send(mail);
+            }
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task SMS_click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? Do you want to send SMS");
+        if (confirmed)
+        {
+            DTStudentRegister = new ObservableCollection<dtStudentRegister>();
+            DTStudentRegister = new ObservableCollection<dtStudentRegister>(gv_studentRegister!.SelectedRecords);
+            PopupLoading = true;
+
+            foreach (dtStudentRegister dt in DTStudentRegister)
+            {
+                try
+                {
+                    await sendSMS(dt);
+                    PopupLoading = false;
+                    Message = "SMS Successfully sent to the Parent";
+                }
+                catch
+                {
+                    PopupLoading = false;
+                    Message = "SMS sending failed";
+                }
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task sendSMSHira(dtStudentRegister DTStudentList)
+    {
+        try
+        {
+            //             var url = "https://www.smartsmsgateway.com/api/api_http.php";
+            //             var param = new Dictionary<string, string>
+            // {
+            //                 {"username","Hiracomp" },
+            //                 {"password","hr101" },
+            //                 {"senderid","ORISON UAE" },
+            //                 {"text", Message },
+            //                 {"type","text" },
+            //                 {"datetime",(DateTime.Now).ToString() }
+            //             };
+
+            SMSUrl = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select value from Settings where Category='SMSUrl'"))!).ToString()).Value;
+            SMSUserID = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select value from Settings where Category='SMSUserIDERP'"))!).ToString()).Value;
+            SMSPassword = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select value from Settings where Category='SMSPasswordERP'"))!).ToString()).Value;
+            SMSSenderid = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select value from Settings where Category='SMSSenderid'"))!).ToString()).Value;
+
+            var url = SMSUrl;
+            var param = new Dictionary<string, string>
+{
+                {"username",SMSUserID },
+                {"password",SMSPassword },
+                {"senderid",SMSSenderid },
+                {"text", SMSMessage! },
+                {"type","text" },
+                {"datetime",(DateTime.Now).ToString() }
+            };
+            //var recipients = new List<string> { "971568815606", "971568815607" };
+            List<string> MobileList = new List<string>();
+            //GridRowData = await this.refGridAssetItem.GetSelectedRecordsAsync();
+            //foreach (dtStudentRegister i in DTStudentList)
+            if (DTStudentList != null)
+            {
+                var mobile = DTStudentList.Mobile!.ToString().Replace(" ", "").Replace("-", "").Replace("/", "").Replace("\\", "");
+
+                if (mobile.StartsWith("+"))
+                    mobile = mobile.Replace("+", "");
+                if (mobile.StartsWith("05") & mobile.Length == 10)
+                    mobile = "971" + mobile.Substring(1, 9);
+                else if (!(mobile.StartsWith("971") & mobile.Length == 12))
+                {
+                    if (mobile.StartsWith("00971") & mobile.Length == 14)
+                        mobile = mobile.Substring(2, 10);
+                    else if (mobile.StartsWith("0971") & mobile.Length == 14)
+                        mobile = mobile.Substring(1, 10);
+                }
+                MobileList.Add(mobile);
+            }
+            var recipients = new List<string>();
+            recipients = MobileList;
+            var postData = new List<KeyValuePair<string, string>>();
+            postData.Add(new KeyValuePair<string, string>("to", string.Join(";", recipients)));
+            foreach (var entry in param)
+            {
+
+                postData.Add(new KeyValuePair<string, string>(entry.Key, entry.Value));
+            }
+            var httpClient = new HttpClient();
+
+
+            try
+            {
+                var content = new FormUrlEncodedContent(postData);
+                var response = await httpClient.PostAsync(url, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine(result);
+                    // Response = "Success";
+                    // var result1 = SaveSms();
+                    // var res = SaveSms();
+                }
+                else
+                {
+                    var error = "HTTP ERROR: " + (int)response.StatusCode + " " + response.ReasonPhrase;
+                    Console.WriteLine(error);
+                    // Response = "Failed";
+                    // var result1 = SaveSms();
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                var result = "HTTP ERROR: " + ex.Message;
+                Console.WriteLine(result);
+                // Response = "Failed";
+                // var result1 = SaveSms();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task sendSMS(dtStudentRegister DTStudentList)
+    {
+        //try
+        //{
+        //SMSUrl = "http://51.210.118.93:8080/websmpp/websms";
+        BranchID = int.Parse(await SessionStorage.GetItemAsync<string>("BranchID"));
+        //int f = 0;
+        SMSUserID = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMSUserID'"))!).ToString()).Value;
+        //"habitatjurf";
+        SMSPassword = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMSPassword'"))!).ToString()).Value; //"habi2222";
+        SMSSenderid = JsonConvert.DeserializeObject(((dynamic)(await dboService.GetScalar("select Value from Settings where Category ='SMSSenderid'"))!).ToString()).Value; //"habi2222";                                                                                                                                                                             //string LoginUrl = JsonConvert.DeserializeObject(((dynamic)await dboService.GetScalar(" select Description from MasterMisc where Source = 'StudentLogin'")).ToString()).Value;
+
+        //foreach (dtStudentFeeRegister dt in dtSelected)
+        if (DTStudentList != null)
+        {
+            string str2 = DTStudentList.Mobile!.ToString().Replace(" ", "").Replace("-", "").Replace("/", "").Replace("\\", "");
+            //  string str2 = "0556465283";
+            if (str2.StartsWith("+"))
+                str2 = str2.Replace("+", "");
+            if (str2.StartsWith("05") & str2.Length == 10)
+                str2 = "971" + str2.Substring(1, 9);
+            else if (!(str2.StartsWith("971") & str2.Length == 12))
+            {
+                if (str2.StartsWith("00971") & str2.Length == 14)
+                    str2 = str2.Substring(2, 10);
+                else if (str2.StartsWith("0971") & str2.Length == 14)
+                    str2 = str2.Substring(1, 10);
+            }
+
+            string txtMessage1 = "";
+            //txtMessage1 = "Congratulations! Your ward " + dt.AccountName + " is selected for the academic year 2023-24. Please login to the online portal and complete the admission form." +//Environment.NewLine+
+            // "  Url:" + LoginUrl + "" + //Environment.NewLine +
+            // "  Username:" + dt.SlNo.Trim() + "" +// Environment.NewLine +
+            // "  Password: " + dt.SlNo.Trim() + dt.StudentName.Trim().Substring(0, 2).ToUpper() + "";
+            txtMessage1 = SMSBody!;
+
+            if (str2 == null)
+            {
+                str2 = DTStudentList.MotherMobile!;
+            }
+
+
+            string url = "http://habitatschool.w2wts.com/API_SendSMS.aspx?User=" + SMSUserID + "&passwd=" + SMSPassword + "&mobilenumber=" + str2 + "&message=" + txtMessage1 + "& sid" + SMSSenderid + "&mtype=N&DR=N";
+            Uri uri = new Uri(url);
+            WebRequest req = WebRequest.Create(uri);
+            req.ContentType = "Json";
+            req.Method = "GET";
+            if (str2 != null)
+            {
+                WebResponse response1 = req.GetResponse();
+                Stream dataStream = response1.GetResponseStream();
+                StreamReader reader = new StreamReader(dataStream);
+                string jsonString = reader.ReadToEnd();
+            }
+            //response = "Success";
+            // lblMsg = "SMS sent Successfully";
+            // this.Visibility = true;
+            //var result = SaveSms();
+            StateHasChanged();
+        }
+    }
+
+    public async Task WhatsApp_click()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+}

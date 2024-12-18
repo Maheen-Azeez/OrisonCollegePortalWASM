@@ -1,0 +1,11 @@
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\bin\Release\net6.0\OrisonCollegePortal.Shared.deps.json
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\bin\Release\net6.0\OrisonCollegePortal.Shared.dll
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\bin\Release\net6.0\OrisonCollegePortal.Shared.pdb
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\OrisonCollegePortal.Shared.GeneratedMSBuildEditorConfig.editorconfig
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\OrisonCollegePortal.Shared.AssemblyInfoInputs.cache
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\OrisonCollegePortal.Shared.AssemblyInfo.cs
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\OrisonCollegePortal.Shared.csproj.CoreCompileInputs.cache
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\OrisonCollegePortal.Shared.dll
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\refint\OrisonCollegePortal.Shared.dll
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\OrisonCollegePortal.Shared.pdb
+E:\CollegePortalWASM\OrisonCollegePortal\OrisonCollegePortal\Shared\obj\Release\net6.0\ref\OrisonCollegePortal.Shared.dll

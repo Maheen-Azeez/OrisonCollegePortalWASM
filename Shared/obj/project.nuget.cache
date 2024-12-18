@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "AtWiG9trVHQf27C1Fp11kkDbTCCZ4VivLJzgWFUZmbaDm1BEIiFrGIR8SRINTs2H+F/+4bz6ZvG07rbBXFvtgQ==",
+  "success": true,
+  "projectFilePath": "E:\\CollegePortalWASM\\OrisonCollegePortal\\OrisonCollegePortal\\Shared\\OrisonCollegePortal.Shared.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\mahee\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\6.0.29\\microsoft.windowsdesktop.app.ref.6.0.29.nupkg.sha512",
+    "C:\\Users\\mahee\\.nuget\\packages\\microsoft.netcore.app.ref\\6.0.29\\microsoft.netcore.app.ref.6.0.29.nupkg.sha512",
+    "C:\\Users\\mahee\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\6.0.29\\microsoft.aspnetcore.app.ref.6.0.29.nupkg.sha512"
+  ],
+  "logs": []
+}

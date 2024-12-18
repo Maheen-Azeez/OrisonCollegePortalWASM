@@ -1,0 +1,658 @@
+﻿@page "/Home"
+
+@using OrisonCollegePortal.Client.Pages.Loading
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using OrisonCollegePortal.Shared.Entities.General
+@using System.Web
+@using Newtonsoft.Json
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Grids
+@using Microsoft.Extensions.Localization
+
+@inject HttpClient http
+@inject IJSRuntime JsRuntime
+@inject ToastService ToastService
+@inject NavigationManager uriHelper
+@inject GlobalStudentService globalStudentServ
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager StudentService
+@inject OrisonCollegePortal.Client.Contracts.IShortCutsManager ShortcutManage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <link href="css/HomeOrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div class="container" style="height: @DeviceHeight;">
+    <div style="padding-top:@PaddingHeight">
+        @if (!string.IsNullOrEmpty(PaddingHeight))
+        {
+            @*<div style=" padding-top: 11%;text-align:center;">
+        @if (!string.IsNullOrEmpty(imgSchoolLogo))
+        {
+        <img src="@imgSchoolLogo" style="width: 345px; height: 90px;" alt="Orison" class="avatar-xxl mb-1">
+        }
+        </div>*@
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <h3 class="animate-charcter">Orison College Module</h3>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 text-center" style=" padding-top: 1%;">
+                    <button class="search-txt e-input-group e-control-wrapper" style="width:605px;float:none" @onclick="OpenStudent_Click">
+                        <span style="width: 100%; align-self: center;">@StudentName</span>
+                    </button>
+                </div>
+                <div id="target" style="height:auto;">
+                </div>
+            </div>
+            <div class="row" style="margin-left: 23%; margin-right: 23%; text-align: center; justify-content: center;">
+                <div class="pt-3" style="text-align: center; justify-content: center;">
+                    @foreach (OrisonCollegePortal.Shared.Entities.General.ShortCuts card in ShortCuts)
+                    {
+                        <a title=@card.Tooltip! style="font-family: arial,sans-serif; font-size: 13px; font-weight: 400; padding-right: 12px; color: #4758A8; " @onclick="(()=>OnShortCutClick(card.URL!))">@card.Name!</a>
+                    }
+                </div>
+                @*<div class="control-section col-lg-12 card-control-section tile_layout">
+            <div class="row e-card-layout">
+            @if (ShortCuts != null)
+            {
+            @foreach (OrisonSchoolWeb.Entities.General.ShortCuts card in ShortCuts)
+            {
+            <div class="col-lg-3 col-md-3 col-sm-6" style="padding: 10px; cursor: pointer; text-align: -webkit-center;">
+            <div class="card_effect">
+            <SfCard title="@card.Title">
+            <div>
+            <img src="@card.Image" width="100" height="100" />
+            </div>
+            </SfCard>
+            </div>
+            </div>
+            }
+            <div class="col-lg-3 col-md-3 col-sm-6" style="padding: 10px; cursor: pointer; text-align: -webkit-center;">
+            <div class="card_effect">
+            <SfCard title="Add New">
+            <div>
+            <a id="aShortcutAdd" @onclick="AddEditShortcut"><img src="ShortcutIcons/PlusIcon.png" width="100" height="100" /></a>
+            </div>
+            </SfCard>
+            </div>
+            </div>
+            }
+            </div>
+            </div>*@
+            </div>
+        }
+        else
+        {
+            <LoadingScreen></LoadingScreen>
+        }
+    </div>
+</div>
+<SfDialog Height="200px" Width="500px" ShowCloseIcon="true" @bind-Visible="AddEdit">
+    <DialogTemplates>
+        <Content>
+            <div class="form-group">
+                <SfTextBox @bind-Value="@ObjShortCut.Name" Placeholder="Name"></SfTextBox>
+            </div>
+            <div class="form-group">
+                <SfTextBox @bind-Value="@ObjShortCut.URL" Placeholder="URL"></SfTextBox>
+            </div>
+        </Content>
+        <FooterTemplate>
+            <SfButton Content="Save" @onclick="ShortcutSaveClick"></SfButton>
+        </FooterTemplate>
+    </DialogTemplates>
+</SfDialog>
+<SfDialog Width="65%" Height="75%" @bind-Visible="@popStudents" AllowPrerender="true" CloseOnEscape="true" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header>
+            @*<SfTextBox ID="txtStudent" @ref="search" Input="OnInput" @bind-Value="StudentName" Created="onCreateSearch" Width="100%" ShowClearButton="true" EnablePersistence="true"></SfTextBox>*@
+            <SfTextBox ID="txtStudent" @ref="@search" Input="OnInput" Autocomplete="AutoComplete.Off" EnablePersistence="false" Created="onCreateSearch" ValueChange="@ValueChangeHandler" Width="100%" ShowClearButton="true" Placeholder="Global Search"></SfTextBox>
+        </Header>
+        <Content>
+            <div class="p-1">
+                @if (StudentList != null)
+                {
+                    <SfGrid DataSource="@StudentList" ID="gv_studentList" @ref="gv_studentList"
+                            GridLines="GridLine.Both"
+                            AllowFiltering="true"
+                            AllowPaging="true"
+                            AllowExcelExport="true"
+                            AllowPdfExport="true"
+                            Height="380px"
+                            Width="100%"
+                            EnableVirtualization="false"
+                            AllowSelection="true"
+                            ShowColumnChooser="true"
+                            AllowResizing="true"
+                            AllowSorting="true"
+                            EnableAltRow="true"
+                            RowHeight="24">
+                        <GridEvents RowSelecting="RowSelectingHandler" TValue="dtoStudentRegisterDefault"></GridEvents>
+                        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                        <GridPageSettings PageSize="50"></GridPageSettings>
+                        <GridColumns>
+                            @* <GridColumn HeaderText=@Localizer["S.No"] Width="50" Context="context1" Index="1">
+                        <Template>
+                        @{ var con = (context1 as dtoStudentRegisterDefault);
+                        var Index = GetRowCounter(con!.AccountID); }
+                        <span>@(Index.Result)</span>
+                        </Template>
+                        </GridColumn> *@
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.AccountID) IsPrimaryKey="true" HeaderText="AccountID" Width="120" Visible="false"></GridColumn>
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.AccountCode) HeaderText="SCode" Width="90" Index="2"></GridColumn>
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.AccountName) HeaderText="Student Name" Width="180" Index="3"></GridColumn>
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.Class) HeaderText="Class" Width="90" Index="4"></GridColumn>
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.Division) HeaderText="Section" Width="80" Index="5"></GridColumn>
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.ParentCode) HeaderText="Parent Code" Width="100" Visible="false" Index="6"></GridColumn>
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.ParentName) HeaderText="Parent Name" Width="180" Visible="false" Index="7"></GridColumn>
+                            <GridColumn Field=@nameof(dtoStudentRegisterDefault.PerMobile) HeaderText="Mobile" Width="120" Visible="false" Index="8"></GridColumn>
+                        </GridColumns>
+                    </SfGrid>
+                }
+            </div>
+            @*<div class="container-fluid">
+            <div class="pb-2">
+            <SfTextBox @ref="search" Input="OnInput" Placeholder="Global Search" Width="100%" ShowClearButton="true" CssClass="e-btn2" Created="@onCreateSearch" EnablePersistence="true"></SfTextBox>
+            </div>
+
+            </div>*@
+        </Content>
+    </DialogTemplates>
+    <DialogPositionData X="@Xvalue" Y="@Yvalue"></DialogPositionData>
+    <DialogEvents Closed="@ClosedHandler" Opened="@onOpen"></DialogEvents>
+    @*<DialogButtons>
+    <DialogButton Content=@Localizer["Cancel"] @onclick="@ClosedHandler" />
+    </DialogButtons>*@
+    <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+</SfDialog>
+<SfDialog Width="300" CloseOnEscape="true" IsModal="true" Height="140" @bind-Visible="popAlert">
+    <DialogTemplates>
+        <Content>
+            <div style="text-align:center;">
+                <img src="gif/IconWarning.gif" style=" width: 60px; height: 60px;" />
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size: medium; color: #842029;">Please Select Student</div>
+            </div>
+            <div class="pt-2" style="text-align:center;">
+                <SfButton Content="OK" title="Ok" CssClass="e-outline" OnClick="@(() => popAlert = false)" />
+            </div>
+        </Content>
+    </DialogTemplates>
+    <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+</SfDialog>
+
+@code {
+    [CascadingParameter]
+    public MainLayout? Layout { get; set; }
+    int? AccountID, BranchID, UserID;
+    string? DeviceHeight = "", StudentName = "", CmbAccYear = "", Category, AcademicYear, PaddingHeight = ""; //imgSchoolLogo = ""
+    public bool AddEdit = false;
+    public bool popStudents = false;
+    public bool popAlert = false;
+    private string Xvalue = "center";
+    private string Yvalue = "center";
+    SfTextBox? search;
+    UserRights objUserRight = new UserRights();
+    DtoLoginModel info = new DtoLoginModel();
+    public SfGrid<dtoStudentRegisterDefault>? gv_studentList { get; set; }
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+    OrisonCollegePortal.Shared.Entities.General.ShortCuts ObjShortCut = new OrisonCollegePortal.Shared.Entities.General.ShortCuts();
+    List<OrisonCollegePortal.Shared.Entities.General.ShortCuts> ShortCuts = new List<OrisonCollegePortal.Shared.Entities.General.ShortCuts>();
+
+    List<dtoStudentRegisterDefault> StudentList = new List<dtoStudentRegisterDefault>();
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Layout!.VersionChecker();
+            //Device Settings
+            var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+            DeviceHeight = dimension.Height - 90 + "px";
+            PaddingHeight = (dimension.Height / 4) + "px";
+            //Device Settings
+            // Con = await SessionStorage.GetItemAsync<string>("Con");
+            // Category = await SessionStorage.GetItemAsync<string>("Category");
+            // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+            // UserID = await SessionStorage.GetItemAsync<int>("UserID");
+            await GetLoginInfo();
+            if (info != null)
+            {
+                UserID = info.UserID;
+                BranchID = info.BranchID;
+                Category = info.Category;
+            }
+            AcademicYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+            //string Logo = await StudentService.getLogo(BranchID, Con);
+            //object LogoUrl = await StudentService.getLogoUrl(Con);
+            //imgSchoolLogo = LogoUrl.ToString() + "LogoWithName/" + Logo;
+            ShortCuts = (await ShortcutManage.GetShortCuts("Student", BranchID))!.ToList();
+            CmbYear = (await StudentMasterService.GetAcademicYear(BranchID))!.ToList();
+            if (AcademicYear != null)
+            {
+                CmbAccYear = AcademicYear;
+                objAccYear = CmbYear.Where(b => b.AcademicYear!.Trim() == AcademicYear).FirstOrDefault()!;
+            }
+            else
+            {
+                objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+                CmbAccYear = objAccYear.AcademicYear!.ToString();
+            }
+            StudentList = globalStudentServ.GlobalStudentList;
+            //StudentList = (await StudentService.GetStudentsDefault(CmbAccYear, BranchID, Category, UserID))!.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public void AddEditShortcut()
+    {
+        AddEdit = !AddEdit;
+    }
+    private async Task onOpen(Syncfusion.Blazor.Popups.OpenEventArgs args)
+    {
+        args.PreventFocus = true;
+        await search!.FocusAsync();
+    }
+    public void ShortcutSaveClick()
+    {
+        try
+        {
+            if (ObjShortCut != null)
+            {
+                OrisonCollegePortal.Shared.Entities.General.ShortCuts drShortCut = new OrisonCollegePortal.Shared.Entities.General.ShortCuts();
+                drShortCut.ID = ObjShortCut.ID;
+                drShortCut.Name = ObjShortCut.Name;
+                drShortCut.URL = ObjShortCut.URL;
+                drShortCut.Tooltip = ObjShortCut.Tooltip;
+                ShortCuts.Add(drShortCut);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    private async Task OpenStudent_Click()
+    {
+        popStudents = true;
+        StudentName = "";
+        AccountID = 0;
+        await gv_studentList!.ResetPersistDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task OnInput(InputEventArgs args)
+    {
+        if (!string.IsNullOrEmpty(args.Value))
+        {
+            if (args.Value.Length >= 3)
+            {
+                await gv_studentList!.SearchAsync(args.Value);
+            }
+        }
+    }
+    public async void onCreateSearch()
+    {
+        //this.search.AddIcon("append", "fa fa-search");
+        await search!.FocusAsync();
+        StudentName = "";
+    }
+    private async Task ValueChangeHandler(Syncfusion.Blazor.Inputs.ChangedEventArgs args)
+    {
+        if (string.IsNullOrWhiteSpace(args.Value))
+        {
+            await gv_studentList!.ResetPersistDataAsync();
+        }
+        else
+        {
+            await gv_studentList!.SearchAsync(args.Value);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void CreatedHandler(object args)
+    {
+        gv_studentList!.FocusAsync();
+    }
+    public async Task RowSelectingHandler(RowSelectingEventArgs<dtoStudentRegisterDefault> args)
+    {
+        AccountID = args.Data.AccountID;
+        //AccountID = 0;
+        StudentName = args.Data.AccountName;
+        popStudents = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task<double> GetRowCounter(int? val)
+    {
+        var index = await gv_studentList!.GetRowIndexByPrimaryKeyAsync(val);
+        var currentPage = gv_studentList.PageSettings.CurrentPage;
+        if (gv_studentList.AllowPaging && currentPage > 1)
+        {
+            index = (((currentPage - 1) * gv_studentList.PageSettings.PageSize) + index);
+        }
+        return index + 1;
+    }
+    public async void ClosedHandler()
+    {
+        popStudents = false;
+        await search!.FocusOutAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+    public async void OnShortCutClick(string page)
+    {
+        // if (AccountID != 0)
+        if (AccountID != null)
+        {
+            //Security _security = new Security();
+            //uriHelper.NavigateTo(page + "?Param=" + _security.Encrypt(AccountID.ToString()));
+            if (page == "ReceiptVoucher")
+            {
+
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID + "/frmReceiptWeb/Sibling");
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Student Receipt", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID + "/frmReceiptWeb/Sibling");
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "Student")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Student", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "BasicEdit")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Teacher Edit", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "Siblings")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Sibling", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "ParentProfile")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Parent", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "StudentBus")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Transportation", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "Post")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "PostFee", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "StudentStatement")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Statement", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else
+            {
+                uriHelper.NavigateTo(page + "/" + AccountID);
+            }
+        }
+        else
+        {
+            if (page == "Student")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo(page + "/" + AccountID);
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Student", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowAdd == true)
+                    {
+                        uriHelper.NavigateTo(page + "/" + AccountID);
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else if (page == "BasicEdit")
+                popAlert = true;
+            else if (page == "Siblings")
+                popAlert = true;
+            else if (page == "ParentProfile")
+                popAlert = true;
+            else if (page == "StudentBus")
+                popAlert = true;
+            else if (page == "Post")
+                popAlert = true;
+            else if (page == "ReceiptVoucher")
+            {
+                if (Category == "Administrator")
+                {
+                    uriHelper.NavigateTo("ReceiptVoucher/frmReceiptWeb");
+                }
+                else
+                {
+                    objUserRight = (await _UserRights.GetUserRights(UserID, "Student Receipt", "Students", BranchID))!;
+                    if (objUserRight.AccessDenied == true)
+                    {
+                        await PermissionDenied();
+                    }
+                    else if (objUserRight.AllowOpen == true)
+                    {
+                        uriHelper.NavigateTo("ReceiptVoucher/frmReceiptWeb");
+                    }
+                    else
+                    {
+                        await PermissionDenied();
+                    }
+                }
+            }
+            else
+                uriHelper.NavigateTo(page);
+        }
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+    private async Task PermissionDenied()
+    {
+        this.ToastService.ShowToast(new ToastOption()
+            {
+                Title = "Something went wrong...",
+                Content = "Permission Denied",
+                CssClass = "e-toast-danger",
+                Icon = "e-error toast-icons",
+                Timeout = 2000,
+                X = "Right",
+                Y = "Top",
+                CloseButton = true
+            });
+            await InvokeAsync(StateHasChanged);
+    }
+
+}

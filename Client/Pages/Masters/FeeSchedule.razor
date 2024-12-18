@@ -1,0 +1,1969 @@
+﻿@page "/FeeSchedule/{ID:int}"
+
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Calendars;
+@using Microsoft.Extensions.Localization
+@using System.Web;
+@using System.Collections.ObjectModel;
+
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager StudentService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IFeeSchedule FeeScheduleService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+@inject IJSRuntime JsRuntime
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+
+@inject HttpClient Http
+@inject ToastService ToastService
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <style type="text/css">
+        .btn-width {
+            width: 34px;
+            border: transparent;
+            background-color: transparent;
+        }
+    </style>
+</head>
+
+@if (AllowOpen == true)
+{
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-9">
+                <div>
+                    <SfButton @onclick="@New_Click" Content="@Localizer[@ButtonLabel]" IconCss="Icon add" CssClass="e-btn" Disabled="@btnAddenable" /> &nbsp;
+                    <SfButton @onclick="@Save_Click" Content=@Localizer["Save"] IconCss="Icon save" CssClass="e-btn" Disabled="@btnSaveenable" /> &nbsp;
+                    <SfButton @onclick="@Edit_Click" IconCss="Icon edit" CssClass="e-btn" Content=@Localizer[@EditButtonLabel] Disabled="@btnEditenable" /> &nbsp;
+                    <SfButton @onclick="@Delete_Click" IconCss="Icon delete" CssClass="e-btn" Content=@Localizer["Delete"] Disabled="@btnDeleteenable" /> &nbsp;
+                    <SfButton @onclick="@Apply_Click" IconCss="Icon approve" CssClass="e-btn" Content=@Localizer["Apply"] /> &nbsp;
+                    <SfButton @onclick="@Recurring_Click" IconCss="Icon reccuring" CssClass="e-btn e-btn5" Content=@Localizer["Recurring"] /> &nbsp;
+                    <SfButton @onclick="@Back_Click" IconCss="Icon back" CssClass="e-btn" Content=@Localizer["Back"] /> &nbsp;
+
+                    <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true">
+                        @Success
+                    </BlazorStrap.BSAlert>
+                    <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDanger" AutoHide="true">
+                        @Failed
+                    </BlazorStrap.BSAlert>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="header-div-style">
+                    <label class="header-label">@Localizer["FEE SCHEDULE"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-6">
+                <label class="label">@Localizer["Schedule"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DTFeeSchedule.FeeSchedule" Enabled="txtFeeSchedule"></SfTextBox>
+            </div>
+            <div class="col-md-6">
+                <label class="label">@Localizer["Academic Year"]</label>
+                <SfComboBox TValue="string" TItem="SchoolAcademicYear" Placeholder="" @bind-Value="@DTFeeSchedule.AcademicYear" DataSource="@CmbYear" Enabled="txtAcademicYear">
+                    <ComboBoxFieldSettings Text="AcademicYear" Value="AcademicYear"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <label class="label">@Localizer["Start Date"]</label>
+                <SfDatePicker TValue="DateTime?" ShowClearButton="true" @bind-Value="@DTFeeSchedule.StartDate" Format="dd/MM/yyyy" Enabled="txtStartDate">
+                </SfDatePicker>
+            </div>
+            <div class="col-md-6">
+                <label class="label">@Localizer["Type"]</label>
+                <SfComboBox DataSource="@Type" TValue="string" TItem="string" @bind-Value="@DTFeeSchedule.Type" Enabled="txtType">
+                    <ComboBoxEvents TItem="string" TValue="string" ValueChange="@TypeValueChangeHandler"></ComboBoxEvents>
+                    <ComboBoxFieldSettings Text="Type" Value="Type"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <label class="label">@Localizer[@classLabel]</label>
+                <SfComboBox TValue="string" TItem="SchoolClassMaster" @bind-Value="@DTFeeSchedule.Class" DataSource="Class" Enabled="txtClass">
+                    <ComboBoxFieldSettings Text="Class" Value="Class"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+            <div class="col-md-6">
+                <label class="label">@Localizer["Description"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DTFeeSchedule.Description" Enabled="txtDescription"></SfTextBox>
+            </div>
+        </div>
+    </div>
+    <div class="row" style="padding-top:0px;" hidden="@HideJoinYear">
+        <div class="col-md-12">
+            <div class="box-card-shadow">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="label">@Localizer["Joining Year"]</label>
+                        <SfComboBox TValue="string" TItem="SchoolAcademicYear" Placeholder="" @bind-Value="@JoiningYear" DataSource="@CmbYear">
+                            <ComboBoxFieldSettings Text="AcademicYear" Value="AcademicYear"></ComboBoxFieldSettings>
+                        </SfComboBox>
+                    </div>
+                    <div class="col-md-6" style="padding-top: 14px">
+                        <SfButton Content=@Localizer["Ok"] CssClass="e-btn e-btn4" @onclick="@btOkReg_Click" />
+                        <SfButton Content=@Localizer["Cancel"] CssClass="e-btn e-btn5" @onclick="@btCancelReg_Click" />
+                    </div>
+                    @*<div class="col-md-3" style="padding-top: 14x">
+                <SfButton Content="Cancel" CssClass="e-outline e-btn5" @onclick="@btCancelReg_Click"  />
+                </div>*@
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" style="padding-top:0px;" hidden="@HideApply">
+        <div class="col-md-12">
+            <div class="box-card-shadow">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="label">@Localizer["Shift"]</label>
+                        <SfComboBox TValue="string" TItem="MastDesignation" @bind-Value="@DTStudentTrans.Shift" DataSource="Shift" Enabled="txtShiftEnable">
+                            <ComboBoxFieldSettings Text="Description" Value="Description"></ComboBoxFieldSettings>
+                        </SfComboBox>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="label">@Localizer["Program"]</label>
+                        <SfComboBox TValue="string" TItem="SchoolClassMaster" @bind-Value="@DTStudentTrans.Class" DataSource="Class" Enabled="txtClassEnable">
+                            <ComboBoxFieldSettings Text="Class" Value="Class"></ComboBoxFieldSettings>
+                        </SfComboBox>
+                    </div>
+                    <div class="col-md-3" style="padding-top: 20px">
+                        <SfCheckBox @bind-Checked="@isOverWriteAll" Label=@Localizer["Overwrite All"] TChecked="bool"></SfCheckBox>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="row">
+                            <div class="col-md-3" style="padding-top: 10px">
+                                <SfButton Content=@Localizer["Apply"] CssClass="e-btn" @onclick="@btnOk_Click" Disabled="@btnOkenable" />
+                            </div>
+                            <div class="col-md-3" style="padding-top: 10px">
+                                <SfButton Content=@Localizer["Cancel"] CssClass="e-btn" @onclick="@btnCancel_Click" Disabled="@btnCancelenable" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6" style="display:none">
+                        <label class="label">@Localizer["Program"]</label>
+                        <SfComboBox TValue="string" TItem="MastDesignation" @bind-Value="@DTStudentTrans.CourseStream" DataSource="CourseStream" Enabled="txtCourseEnable">
+                            <ComboBoxFieldSettings Text="Description" Value="Description"></ComboBoxFieldSettings>
+                        </SfComboBox>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="box-card-shadow">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="label">@Localizer["Bus No"]</label>
+                        <SfComboBox TValue="string" TItem="HrtransportationMast" @bind-Value="@DTStudentTrans.Bus_No" DataSource="BusDetails" Enabled="txtBusEnable">
+                            <ComboBoxFieldSettings Text="VehicleNo" Value="VehicleNo"></ComboBoxFieldSettings>
+                        </SfComboBox>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="label">@Localizer["Mode"]</label>
+                        <SfComboBox TValue="string" TItem="MastDesignation" @bind-Value="@DTStudentTrans.Bus_Mode" DataSource="TranMode" Enabled="txtModeEnable">
+                            <ComboBoxFieldSettings Text="Description" Value="Description"></ComboBoxFieldSettings>
+                        </SfComboBox>
+                    </div>
+                    <div class="col-md-3">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="row">
+                            <div class="col-md-3" style="padding-top: 15px">
+                                <SfButton Content=@Localizer["Apply"] CssClass="e-btn" @onclick="@btOk_Click" Disabled="@btOkenable" />
+                            </div>
+                            <div class="col-md-3" style="padding-top: 15px">
+                                <SfButton Content=@Localizer["Cancel"] CssClass="e-btn" @onclick="@btCancel_Click" Disabled="@btCancelenable" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @* <div class="row">
+            <div class="col-md-3" style="padding-top: 18px">
+            <SfButton Content=@Localizer["Ok"] CssClass="e-btn e-btn4" @onclick="@btOk_Click" Disabled="@btOkenable" />
+            </div>
+            <div class="col-md-3" style="padding-top: 18px">
+            <SfButton Content=@Localizer["Cancel"] CssClass="e-btn" @onclick="@btCancel_Click" Disabled="@btCancelenable" />
+            </div>
+            </div> *@
+            </div>
+        </div>
+    </div>
+    <div class="row" style="padding-top:0px;" hidden="@HideRecurring">
+        <div class="col-xl-12 col-md-12 col-lg-12">
+            <div class="box-card-shadow">
+                <div class="row">
+                    <div class="col-md-12 col-sm-12">
+                        <fieldset class="fieldset" style="border: solid 1px #8235a5; padding: 1%">
+                            <legend style="font-size:small; font-weight:bold; color:#8235a5">Recurring</legend>
+                            <div class="row" style="padding-right:5px; padding-left:10px;">
+                                <div class="col-md-4">
+                                    <label class="label">@Localizer["Frequency"]</label>
+                                    <SfTextBox CssClass="textbox" @bind-Value="@txtFrequency" Width="100%" Enabled="txtFrequencyEnable"></SfTextBox>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="label">@Localizer["Duration"]</label>
+                                    <SfTextBox CssClass="textbox" @bind-Value="@txtDuration" Width="100%" Enabled="txtDurationEnable"></SfTextBox>
+                                </div>
+                                <div class="col-md-2" style="padding-top: 12px">
+                                    <SfButton Content=@Localizer["Ok"] CssClass="e-btn" @onclick="@btnRecurringOk_Click" Disabled="@btnRecurringOkenable" />
+                                </div>
+                                <div class="col-md-2" style="padding-top: 12px">
+                                    <SfButton Content=@Localizer["Cancel"] CssClass="e-btn" @onclick="@btnRecurringCancel_Click" Disabled="@btnRecurringCancelenable" />
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="box-card-shadow">
+        <div class="row" style="padding-top:0px;">
+            <div class="col-md-4">
+                <label class="label">@Localizer["Code"]</label>
+                <SfComboBox TValue="string" TItem="string" @bind-Value="@SelectedData.Code" DataSource="Code" Enabled="txtCode" AllowCustom="false">
+                    <ComboBoxEvents TValue="string" TItem="string" ValueChange="Code_Click"></ComboBoxEvents>
+                    <ComboBoxFieldSettings Text="Code" Value="code"></ComboBoxFieldSettings>
+                </SfComboBox>
+                @*<ValidationMessage For="()=>SelectedData.Code" />*@
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Description"]</label>
+                <SfComboBox TValue="string" TItem="string" @bind-Value="@SelectedData.Description" DataSource="Description" Enabled="txtFeeDescription">
+                    <ComboBoxFieldSettings Text="Description" Value="Description"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["To Post"]</label>
+                <SfComboBox TValue="int" TItem="int" @bind-Value="@SelectedData.PostTo" DataSource="PostTo" Enabled="txtPostTo">
+                    <ComboBoxFieldSettings Text="PostTo" Value="PostTo"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+
+        </div>
+        <div class="row" style="padding-top:0px;">
+            <div class="col-md-4">
+                <label class="label">@Localizer["Due Date"]</label>
+                <SfDatePicker @bind-Value="@SelectedData.DueDate" CssClass="textbox" Format="dd/MM/yyyy" Enabled="txtDueDate"></SfDatePicker>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Amount"]</label>
+                <SfNumericTextBox TValue="decimal" ShowSpinButton="false" @bind-Value="@SelectedData.Amount" CssClass="textbox" Enabled="txtAmount"></SfNumericTextBox>
+            </div>
+            <div class="col-md-3">
+                <label class="label">@Localizer["Discount"]</label>
+                <SfNumericTextBox TValue="int" ShowSpinButton="false" @bind-Value="@SelectedData.Discount" CssClass="textbox" Enabled="txtAmount"></SfNumericTextBox>
+            </div>
+            <div class="col-md-1" style="padding-top:14px;">
+                <SfButton @onclick="@FeeSave_Click" Content="@ButtonLabelNew" IconCss="Icon add" CssClass="e-btn" Disabled="txtFeeButton" />
+            </div>
+        </div>
+        <div class="row" style="padding-top:0px; padding-left:15px">
+            <label style="color:red;font-size:12px">@Valid</label>
+        </div>
+    </div>
+
+
+    <div class="box-card-shadow">
+        @*<fieldset class="fieldset" style="border: solid 1px #8235a5; padding: 1%">
+    <legend style="font-size:small; font-weight:bold; color:#8235a5">History</legend>*@
+        @*<div class="row">*@
+        <div class="table-responsive" style="position: relative; min-width: 300px">
+            <SfGrid DataSource="@DSFeeScheduleTran" ID="GvFeemaster" @ref="GvFeemaster"
+                    GridLines="GridLine.Both"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    AllowExcelExport="true"
+                    AllowPdfExport="true"
+                    ShowColumnChooser="true"
+                    AllowResizing="true"
+                    AllowSorting="true"
+                    EnableAltRow="true"
+                    RowHeight="25"
+            @key="@nameof(SchoolFeeScheduleTran.Id)">
+                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                <GridPageSettings PageSize="50"></GridPageSettings>
+                <GridEvents CommandClicked="OnCommandClicked" TValue="SchoolFeeScheduleTran"> </GridEvents>
+                <GridColumns>
+                    <GridColumn Field=@nameof(SchoolFeeScheduleTran.Id) IsPrimaryKey="true" HeaderText=@Localizer["ID"] Width="120" Visible="false"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeScheduleTran.Code) HeaderText=@Localizer["Code"] Width="100"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeScheduleTran.Description) HeaderText=@Localizer["Description"] Width="180"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeScheduleTran.ToPost) HeaderText=@Localizer["Post To"] Width="120"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeScheduleTran.DueDate) HeaderText=@Localizer["Due Date"] Width="120" Format="dd/MM/yyyy"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeScheduleTran.Amount) HeaderText=@Localizer["Amount"] Width="120"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeScheduleTran.DiscAmount) HeaderText=@Localizer["Discount"] Format="0.00" Width="120"></GridColumn>
+                    @if (btnEnable == true)
+                    {
+                        <GridColumn Width="80" HeaderText="Actions">
+                            <GridCommandColumns>
+                                <GridCommandColumn ButtonOption="@(new CommandButtonOptions() { CssClass = "Icon2 edit1 grid-edit btn-width e-btn" })" Title=@Localizer["Edit"]></GridCommandColumn>
+                                <GridCommandColumn ButtonOption="@(new CommandButtonOptions() { CssClass = "Icon2 delete1 grid-delete btn-width e-btn" })" Title=@Localizer["Delete"]></GridCommandColumn>
+                            </GridCommandColumns>
+                        </GridColumn>
+                    }
+                    @*<GridColumn Width="40px" HeaderText="Edit">
+                <Template Context="FeeContext">
+                @{ var FeeID = (FeeContext as SchoolFeeScheduleTran).Id;
+                <a @onclick="@(() => { OnFeeEdit(FeeID); })"><img src="Images/edit1.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                }
+                </Template>
+                </GridColumn>*@
+                    @*<GridColumn Width="40px" HeaderText="Delete">
+                <Template Context="FeeContext">
+                @{ var FeeID = (FeeContext as SchoolFeeScheduleTran).Id;
+                <a @onclick="@(() => { OnFeeDelete(FeeID); })"><img src="Images/delete1.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                }
+                </Template>
+                </GridColumn>*@
+                </GridColumns>
+            </SfGrid>
+        </div>
+        @*</div>*@
+        @*</fieldset>*@
+    </div>
+
+
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    "Permission Denied"
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ID { get; set; }
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    int? BranchID, user;
+    public string? Category, Success, Failed, AcademicYear;
+    bool AllowOpen = true, Open, OpenError, visible = false;
+    public string? ButtonLabel, EditButtonLabel, mode, FeeID, ButtonLabelNew, SelectedDescription;
+    public string? txtFrequency, txtDuration, Valid, FeeScheduleID, ExistingFeeSchedule, JoiningYear, Con;
+
+    public bool IsOpen = false, IsOpenDanger = false, isOverWriteAll = false;
+    DateTime FeeDueDate;
+
+    public bool btnAddenable { get; set; }
+    public bool btnSaveenable { get; set; }
+    public bool btnEditenable { get; set; }
+    public bool btnDeleteenable { get; set; }
+
+    public bool txtFeeSchedule { get; set; }
+    public bool txtAcademicYear { get; set; }
+    public bool txtStartDate { get; set; }
+    public bool txtType { get; set; }
+    public bool txtClass { get; set; }
+    public bool txtDescription { get; set; }
+    public bool txtCode { get; set; }
+    public bool txtFeeDescription { get; set; }
+    public bool txtPostTo { get; set; }
+    public bool txtDueDate { get; set; }
+    public bool txtAmount { get; set; }
+    public bool txtFeeButton { get; set; }
+
+    public bool txtClassEnable { get; set; }
+    public bool txtShiftEnable { get; set; }
+    public bool txtCourseEnable { get; set; }
+    public bool btnOkenable { get; set; }
+    public bool btnCancelenable { get; set; }
+
+    public bool txtBusEnable { get; set; }
+    public bool txtModeEnable { get; set; }
+    public bool btOkenable { get; set; }
+    public bool btCancelenable { get; set; }
+
+    public bool txtFrequencyEnable { get; set; }
+    public bool txtDurationEnable { get; set; }
+    public bool btnRecurringOkenable { get; set; }
+    public bool btnRecurringCancelenable { get; set; }
+
+    public bool HideApply { get; set; }
+    public bool HideRecurring { get; set; }
+    public bool HideJoinYear { get; set; }
+
+    bool btnEnable;
+
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    public string CmbAccYear = "";
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+    UserRights objUserRight = new UserRights();
+    DtoLoginModel info = new DtoLoginModel();
+
+    public SchoolFeeSchedule DTFeeSchedule = new SchoolFeeSchedule();
+    public SchoolStudentTran DTStudentTrans = new SchoolStudentTran();
+
+    public IList<MastDesignation> CmbMiscMaster = new List<MastDesignation>();
+    public IList<SchoolClassMaster> Class = new List<SchoolClassMaster>();
+    public IList<MastDesignation> Shift = new List<MastDesignation>();
+    public IList<MastDesignation> CourseStream = new List<MastDesignation>();
+    public IList<HrtransportationMast> BusDetails = new List<HrtransportationMast>();
+    public IList<MastDesignation> TranMode = new List<MastDesignation>();
+
+    public SchoolFeeMaster SelectedData = new SchoolFeeMaster();
+    public IList<SchoolFeeMaster> cmbFeeMaster = new List<SchoolFeeMaster>();
+    public string[]? Code;
+    public string[]? Description;
+    public int[]? PostTo;
+
+    IEnumerable<string> Type = new List<string>() {
+    "Fee",
+    "CC.Activity",
+    "Discount",
+    "Registration",
+    "Transportation",
+    "Activity",
+    "General",
+
+    };
+
+    public IList<SchoolFeeSchedule> DSFeeSchedule = new List<SchoolFeeSchedule>();
+    public SfGrid<SchoolFeeSchedule>? GvFeeSchedule { get; set; }
+
+    // public IList<SchoolFeeScheduleTran> DSFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+    public ObservableCollection<SchoolFeeScheduleTran> DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>();
+    public IList<SchoolFeeScheduleTran> DSFeeScheduleTranTemp = new List<SchoolFeeScheduleTran>();
+    SchoolFeeScheduleTran ObjTranEdit = new SchoolFeeScheduleTran();
+
+    // public IList<SchoolFeeScheduleTran> FeeMasterSession = new List<SchoolFeeScheduleTran>();
+    public ObservableCollection<SchoolFeeScheduleTran> FeeMasterSession = new ObservableCollection<SchoolFeeScheduleTran>();
+    public IList<SchoolFeeScheduleTran> BindFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+    public SfGrid<SchoolFeeScheduleTran>? GvFeemaster { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+        // user = await SessionStorage.GetItemAsync<int>("UserID");
+        // Category = await SessionStorage.GetItemAsync<string>("Category");
+        await Layout.VersionChecker();
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = info.UserID;
+            BranchID = info.BranchID;
+            Category = info.Category;
+        }
+        AcademicYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+        Con = await SessionStorage.GetItemAsync<string>("Con");
+
+        if (Category == "Administrator")
+        {
+            AllowOpen = true;
+            Open = false;
+
+            await LoadData();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "FeeSchedule", "Students", BranchID))!;
+
+                if (objUserRight.AccessDenied == true)
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+                else if (objUserRight.AllowOpen == true)
+                {
+                    AllowOpen = true;
+                    Open = false;
+
+                    await LoadData();
+                }
+                else
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                AllowOpen = false;
+                Open = true;
+            }
+        }
+    }
+
+    public async Task LoadData()
+    {
+        ButtonLabel = "New";
+        EditButtonLabel = "Edit";
+
+        CmbYear = (await StudentService.GetAcademicYear(BranchID))!.ToList();
+        if (AcademicYear != null)
+        {
+            CmbAccYear = AcademicYear;
+            objAccYear = CmbYear.Where(b => b.AcademicYear!.Trim() == CmbAccYear).FirstOrDefault()!;
+        }
+        else
+        {
+            objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+            CmbAccYear = objAccYear.AcademicYear!.ToString();
+        }
+
+        DTFeeSchedule.AcademicYear = CmbAccYear;
+        JoiningYear = CmbAccYear;
+
+        Class = (await StudentMasterService.GetClass(BranchID, CmbAccYear))!.ToList();
+
+        CmbMiscMaster = (await StudentMasterService.BindComboBox("All"))!.ToList();
+        Shift = CmbMiscMaster.Where(a => a.Source == "Shift").ToList();
+
+        var customShift = new MastDesignation() { Description = "All" };
+        Shift.Add(customShift);
+
+        cmbFeeMaster = (await FeeScheduleService.GetCode(BranchID, CmbAccYear))!.ToList();
+        Code = cmbFeeMaster.Select(a => a.Code).ToArray()!;
+        Description = cmbFeeMaster.Select(a => a.Description).ToArray()!;
+        PostTo = cmbFeeMaster.Select(a => a.PostTo).ToArray();
+
+        CourseStream = CmbMiscMaster.Where(a => a.Source == "Coursestream").ToList();
+        var customCourse = new MastDesignation() { Description = "All" };
+        CourseStream.Add(customCourse);
+        TranMode = CmbMiscMaster.Where(a => a.Source == "Mode").ToList();
+        BusDetails = (await StudentMasterService.GetBusDetails(BranchID))!.ToList();
+
+        SelectedData.DueDate = objAccYear.StartDate;//DateTime.Now;
+
+        if (ID != 0)
+        {
+            await OnEdit(ID);
+            btnSaveenable = true;
+        }
+        else
+        {
+            await New_Click();
+        }
+
+        txtClassEnable = false;
+        txtShiftEnable = false;
+        txtCourseEnable = false;
+        btnOkenable = true;
+        btnCancelenable = true;
+
+        txtBusEnable = false;
+        txtModeEnable = false;
+        btOkenable = true;
+        btCancelenable = true;
+
+        txtFrequencyEnable = false;
+        txtDurationEnable = false;
+        btnRecurringOkenable = true;
+        btnRecurringCancelenable = true;
+        txtFeeButton = false;
+        btnEnable = false;
+
+        HideApply = true;
+        HideRecurring = true;
+        HideJoinYear = true;
+    }
+
+    public async Task OnEdit(int ID)
+    {
+        FeeID = ID.ToString();
+        object Fee = await FeeScheduleService.GetFeeSchedule(FeeID, BranchID);
+        await SessionStorage.SetItemAsync("FeeSchedule", Fee);
+        //DSFeeScheduleTran = (await FeeScheduleService.GetFeeScheduleFeeList(Fee.ToString()!, BranchID, CmbAccYear))!.ToList();
+        DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>((await FeeScheduleService.GetFeeScheduleFeeList(Fee.ToString()!, BranchID, CmbAccYear))!);
+
+        DTFeeSchedule = await FeeScheduleService.GetDTFeeScheduleData(FeeID, BranchID, CmbAccYear);
+
+        if (DTFeeSchedule.Type == "Registration")
+            HideJoinYear = false;
+        else
+            HideJoinYear = true;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task SessionSet()
+    {
+        await JsRuntime.InvokeVoidAsync("localStorage.setItem", "FeeMasterSession", DSFeeScheduleTran);
+    }
+
+    public async Task SessionGet()
+    {
+        //FeeMasterSession = await JsRuntime.InvokeAsync<List<SchoolFeeScheduleTran>>("localStorage.getItem", "FeeMasterSession");
+        FeeMasterSession = await JsRuntime.InvokeAsync<ObservableCollection<SchoolFeeScheduleTran>>("localStorage.getItem", "FeeMasterSession");
+    }
+
+    public async Task New_Click()
+    {
+        mode = "New";
+        if (ButtonLabel == "New")
+        {
+            DTFeeSchedule.FeeSchedule = "";
+            DTFeeSchedule.AcademicYear = CmbAccYear;
+            DTFeeSchedule.StartDate = objAccYear.StartDate;
+            DTFeeSchedule.Type = "";
+            DTFeeSchedule.Class = "";
+            DTFeeSchedule.Description = "";
+
+            DTStudentTrans.Class = "";
+            DTStudentTrans.Shift = "";
+            DTStudentTrans.CourseStream = "";
+
+            DTStudentTrans.Bus_No = "";
+            DTStudentTrans.Bus_Mode = "";
+
+            txtFrequency = "";
+            txtDuration = "";
+
+            SelectedData.DueDate = objAccYear.StartDate;
+
+            btnSaveenable = false;
+            ButtonLabel = "Cancel";
+            btnEditenable = true;
+            btnDeleteenable = true;
+
+            DSFeeScheduleTran = null!;
+
+            txtFeeSchedule = true;
+            txtAcademicYear = true;
+            txtStartDate = true;
+            txtType = true;
+            txtClass = true;
+            txtDescription = true;
+            txtCode = true;
+            txtFeeDescription = true;
+            txtPostTo = false;
+            txtDueDate = true;
+            txtAmount = true;
+            txtFeeButton = false;
+            btnEnable = true;
+            //DSFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+            DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>();
+        }
+        else
+        {
+            DTFeeSchedule.FeeSchedule = "";
+            DTFeeSchedule.AcademicYear = null;
+            DTFeeSchedule.StartDate = Convert.ToDateTime(null);
+            DTFeeSchedule.Type = "";
+            DTFeeSchedule.Class = "";
+            DTFeeSchedule.Description = "";
+
+            DTStudentTrans.Class = "";
+            DTStudentTrans.Shift = "";
+            DTStudentTrans.CourseStream = "";
+
+            DTStudentTrans.Bus_No = "";
+            DTStudentTrans.Bus_Mode = "";
+
+            txtFrequency = "";
+            txtDuration = "";
+
+            btnSaveenable = true;
+            ButtonLabel = "New";
+            btnEditenable = false;
+            btnDeleteenable = false;
+
+            DSFeeScheduleTran = null!;
+
+            txtFeeSchedule = false;
+            txtAcademicYear = false;
+            txtStartDate = false;
+            txtType = false;
+            txtClass = false;
+            txtDescription = false;
+            txtCode = false;
+            txtFeeDescription = false;
+            txtPostTo = false;
+            txtDueDate = false;
+            txtAmount = false;
+            txtFeeButton = true;
+            btnEnable = false;
+            //DSFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+            DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>();
+
+            SelectedData.Code = "";
+            SelectedData.Description = "";
+            SelectedData.PostTo = Convert.ToInt32(null);
+            SelectedData.DueDate = Convert.ToDateTime(null);
+            SelectedData.Amount = Convert.ToDecimal(null);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Edit_Click()
+    {
+        mode = "Edit";
+        if (EditButtonLabel == "Edit")
+        {
+            btnSaveenable = false;
+            EditButtonLabel = "Cancel";
+            btnAddenable = true;
+            btnDeleteenable = true;
+
+            txtFeeSchedule = false;
+            txtAcademicYear = true;
+            txtStartDate = true;
+            txtType = true;
+            txtClass = true;
+            txtDescription = true;
+            txtCode = true;
+            txtFeeDescription = true;
+            txtPostTo = false;
+            txtDueDate = true;
+            txtAmount = true;
+            txtFeeButton = false;
+            btnEnable = true;
+        }
+        else
+        {
+            DTFeeSchedule.FeeSchedule = "";
+            DTFeeSchedule.AcademicYear = null;
+            DTFeeSchedule.StartDate = Convert.ToDateTime(null);
+            DTFeeSchedule.Type = "";
+            DTFeeSchedule.Class = "";
+            DTFeeSchedule.Description = "";
+
+            DTStudentTrans.Class = "";
+            DTStudentTrans.Shift = "";
+            DTStudentTrans.CourseStream = "";
+
+            DTStudentTrans.Bus_No = "";
+            DTStudentTrans.Bus_Mode = "";
+
+            txtFrequency = "";
+            txtDuration = "";
+
+            btnSaveenable = true;
+            EditButtonLabel = "Edit";
+            btnAddenable = false;
+            btnDeleteenable = false;
+
+            DSFeeScheduleTran = null!;
+
+            txtFeeSchedule = false;
+            txtAcademicYear = false;
+            txtStartDate = false;
+            txtType = false;
+            txtClass = false;
+            txtDescription = false;
+            txtCode = false;
+            txtFeeDescription = false;
+            txtPostTo = false;
+            txtDueDate = false;
+            txtAmount = false;
+            txtFeeButton = true;
+            btnEnable = false;
+            //DSFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+            DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>();
+
+            SelectedData.Code = "";
+            SelectedData.Description = "";
+            SelectedData.PostTo = Convert.ToInt32(null);
+            SelectedData.DueDate = Convert.ToDateTime(null);
+            SelectedData.Amount = Convert.ToDecimal(null);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Save_Click()
+    {
+        if (Category == "Administrator")
+        {
+            await SaveFeeSchedule();
+        }
+        else
+        {
+            objUserRight = (await _UserRights.GetUserRights(user, "FeeSchedule", "Students", BranchID))!;
+
+            if (objUserRight.AllowAdd == false)
+            {
+                IsOpenDanger = true;
+                Failed = "Permission Denied";
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            await SaveFeeSchedule();
+        }
+    }
+
+    public async Task SaveFeeSchedule()
+    {
+        if (mode == "New")
+        {
+            ExistingFeeSchedule = await FeeScheduleService.GetExistFeeSchedule(DTFeeSchedule.FeeSchedule!, BranchID, CmbAccYear);
+
+            if (string.IsNullOrWhiteSpace(DTFeeSchedule.FeeSchedule))
+            {
+                IsOpenDanger = true;
+                Failed = "Schedule Mandatory";
+            }
+            else if (DTFeeSchedule.FeeSchedule == ExistingFeeSchedule)
+            {
+                IsOpenDanger = true;
+                Failed = "FeeSchedule already exists";
+            }
+            else if (string.IsNullOrWhiteSpace(DTFeeSchedule.Type))
+            {
+                IsOpenDanger = true;
+                Failed = "Please Enter Type";
+            }
+            else if (string.IsNullOrWhiteSpace(DTFeeSchedule.Description))
+            {
+                IsOpenDanger = true;
+                Failed = "Please Enter Description";
+            }
+            else if (DSFeeScheduleTran.Count == 0)
+            {
+                IsOpenDanger = true;
+                Failed = "Please add Shedule Details";
+            }
+
+            else
+            {
+                SchoolFeeSchedule SF = new SchoolFeeSchedule();
+                SF.Type = DTFeeSchedule.Type;
+                SF.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                SF.Description = DTFeeSchedule.Description;
+                SF.StartDate = DTFeeSchedule.StartDate;
+                SF.AcademicYear = DTFeeSchedule.AcademicYear;
+                SF.Class = DTFeeSchedule.Class;
+                SF.BranchId = Convert.ToInt32(BranchID);
+
+                int sum = 0;
+                foreach (var dr in DSFeeScheduleTran)
+                {
+                    sum = sum + Convert.ToInt32(dr.Amount);
+                }
+
+                SchoolFeeSchedule dts = new SchoolFeeSchedule();
+
+                if (SF.Type.ToString() == "")
+                {
+                    dts.Type = null;
+                }
+                else
+                {
+                    dts.Type = SF.Type;
+                }
+
+                if (SF.FeeSchedule.ToString() == "")
+                {
+                    dts.FeeSchedule = null;
+                }
+                else
+                {
+                    dts.FeeSchedule = SF.FeeSchedule;
+                }
+
+                if (SF.Description.ToString() == "")
+                {
+                    dts.Description = null;
+                }
+                else
+                {
+                    dts.Description = SF.Description;
+                }
+
+                if (SF.StartDate.ToString() == "")
+                {
+                    dts.StartDate = Convert.ToDateTime(null);
+                }
+                else
+                {
+                    dts.StartDate = SF.StartDate;
+                }
+
+                if (SF.AcademicYear!.ToString() == "")
+                {
+                    dts.AcademicYear = null;
+                }
+                else
+                {
+                    dts.AcademicYear = SF.AcademicYear;
+                }
+
+                if (SF.Class == null)
+                {
+                    dts.Class = null;
+                }
+                else
+                {
+                    dts.Class = SF.Class;
+                }
+
+                if (SF.BranchId.ToString() == "")
+                {
+                    dts.BranchId = Convert.ToInt32(null);
+                }
+                else
+                {
+                    dts.BranchId = SF.BranchId;
+                }
+
+                dts.Total = sum;
+
+                HttpResponseMessage response = await FeeScheduleService.SaveFeeSchedule(dts);
+                if (response.IsSuccessStatusCode)
+                {
+                    //foreach (var dr in FeeMasterSession)
+                    foreach (var dr in DSFeeScheduleTran)
+                    {
+                        if (dr.RowState == "Insert")
+                        {
+                            SchoolFeeScheduleTran dtFee = new SchoolFeeScheduleTran();
+                            dtFee.FeeSchedule = dr.FeeSchedule;
+                            dtFee.Code = dr.Code;
+                            dtFee.Description = dr.Description;
+                            dtFee.ToPost = dr.ToPost;
+                            dtFee.DueDate = dr.DueDate;
+                            dtFee.Amount = dr.Amount;
+                            dtFee.DiscAmount = dr.DiscAmount;
+                            dtFee.Category = dr.Category;
+                            dtFee.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dtFee.BranchId = BranchID;
+
+                            HttpResponseMessage response1 = await FeeScheduleService.SaveFeeScheduleTran(dtFee);
+                            if (response1.IsSuccessStatusCode)
+                            {
+                                DtoUserTrack dttrack = new DtoUserTrack();
+                                dttrack.UserId = user;
+                                dttrack.TableName = "School_FeeSchedule";
+                                dttrack.ActionDate = DateTime.Now;
+                                dttrack.ModuleName = "Student";
+                                dttrack.Reference = "College Portal";
+                                dttrack.Reason = DTFeeSchedule.FeeSchedule;
+
+                                DtoUserTrack dttrack1 = new DtoUserTrack();
+                                dttrack1.UserId = user;
+                                dttrack1.TableName = "School_FeeScheduleTrans";
+                                dttrack1.ActionDate = DateTime.Now;
+                                dttrack1.ModuleName = "Student";
+                                dttrack1.Reference = "College Portal";
+                                dttrack1.Reason = DTFeeSchedule.FeeSchedule;
+
+                                HttpResponseMessage msgTrack = await FeeScheduleService.SaveFeeUserTrack(dttrack);
+                                HttpResponseMessage msgTrack1 = await FeeScheduleService.SaveFeeTranUserTrack(dttrack1);
+                                if (msgTrack.IsSuccessStatusCode)
+                                {
+                                }
+                            }
+                        }
+                    }
+                    IsOpen = true;
+                    Success = "Added Successfully";
+                    DSFeeSchedule = (await FeeScheduleService.GetFeeScheduleList(BranchID, CmbAccYear))!.ToList();
+
+                    DTFeeSchedule.Type = "";
+                    DTFeeSchedule.FeeSchedule = "";
+                    DTFeeSchedule.AcademicYear = "";
+                    DTFeeSchedule.StartDate = Convert.ToDateTime(null);
+                    DTFeeSchedule.Class = "";
+                    DTFeeSchedule.Description = "";
+                    btnSaveenable = true;
+                    ButtonLabel = "New";
+                    btnEditenable = false;
+                    btnDeleteenable = false;
+                    //DSFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+                    DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>();
+                    DSFeeScheduleTranTemp = new List<SchoolFeeScheduleTran>();
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        if (mode == "Edit")
+        {
+            SchoolFeeSchedule SF = new SchoolFeeSchedule();
+            SF.Type = DTFeeSchedule.Type;
+            SF.FeeSchedule = DTFeeSchedule.FeeSchedule;
+            SF.Description = DTFeeSchedule.Description;
+            SF.StartDate = DTFeeSchedule.StartDate;
+            SF.AcademicYear = DTFeeSchedule.AcademicYear;
+            SF.Class = DTFeeSchedule.Class;
+            SF.BranchId = Convert.ToInt32(BranchID);
+            SF.Id = DTFeeSchedule.Id;
+
+            int sum = 0;
+            foreach (var dr in DSFeeScheduleTran)
+            {
+                sum = sum + Convert.ToInt32(dr.Amount);
+            }
+
+            SchoolFeeSchedule dts = new SchoolFeeSchedule();
+
+            if (SF.Type!.ToString() == "")
+            {
+                dts.Type = null;
+            }
+            else
+            {
+                dts.Type = SF.Type;
+            }
+
+            if (SF.FeeSchedule!.ToString() == "")
+            {
+                dts.FeeSchedule = null;
+            }
+            else
+            {
+                dts.FeeSchedule = SF.FeeSchedule;
+            }
+
+            if (SF.Description!.ToString() == "")
+            {
+                dts.Description = null;
+            }
+            else
+            {
+                dts.Description = SF.Description;
+            }
+
+            if (SF.StartDate.ToString() == "")
+            {
+                dts.StartDate = Convert.ToDateTime(null);
+            }
+            else
+            {
+                dts.StartDate = SF.StartDate;
+            }
+
+            if (SF.AcademicYear!.ToString() == "")
+            {
+                dts.AcademicYear = null;
+            }
+            else
+            {
+                dts.AcademicYear = SF.AcademicYear;
+            }
+
+            if (string.IsNullOrWhiteSpace(SF.Class))
+            {
+                dts.Class = null;
+            }
+            else
+            {
+                dts.Class = SF.Class;
+            }
+
+            if (SF.BranchId.ToString() == "")
+            {
+                dts.BranchId = Convert.ToInt32(null);
+            }
+            else
+            {
+                dts.BranchId = SF.BranchId;
+            }
+            dts.Total = sum;
+            dts.Id = SF.Id;
+
+            HttpResponseMessage response = await FeeScheduleService.UpdateFeeSchedule(dts);
+            if (response.IsSuccessStatusCode)
+            {
+                DtoUserTrack dttrack = new DtoUserTrack();
+                dttrack.UserId = user;
+                dttrack.TableName = "School_FeeSchedule";
+                dttrack.ActionDate = DateTime.Now;
+                dttrack.ModuleName = "Student";
+                dttrack.Reference = "College Portal";
+                dttrack.Reason = DTFeeSchedule.FeeSchedule;
+
+                HttpResponseMessage msgTrack = await FeeScheduleService.SaveUpdateFeeUserTrack(dttrack);
+
+                foreach (var dr in DSFeeScheduleTran)
+                {
+                    if (dr.RowState == "Update")
+                    {
+                        SchoolFeeScheduleTran dtFee = new SchoolFeeScheduleTran();
+                        dtFee.FeeSchedule = dr.FeeSchedule;
+                        dtFee.Code = dr.Code;
+                        dtFee.Description = dr.Description;
+                        dtFee.ToPost = dr.ToPost;
+                        dtFee.DueDate = dr.DueDate;
+                        dtFee.Amount = dr.Amount;
+                        dtFee.DiscAmount = dr.DiscAmount;
+                        dtFee.Category = dr.Category;
+                        dtFee.AcademicYear = DTFeeSchedule.AcademicYear;
+                        dtFee.BranchId = BranchID;
+                        dtFee.Id = dr.Id;
+
+                        HttpResponseMessage response1 = await FeeScheduleService.UpdateFeeScheduleTran(dtFee);
+                        if (response1.IsSuccessStatusCode)
+                        {
+                            BindFeeScheduleTran = (await FeeScheduleService.GetFeeScheduleFeeList(DTFeeSchedule.FeeSchedule!, BranchID, CmbAccYear))!.ToList();
+                        }
+                    }
+                }
+                foreach (var rw in DSFeeScheduleTran)
+                //foreach (var rw in FeeMasterSession)
+                {
+                    if (rw.RowState == "Insert")
+                    {
+                        SchoolFeeScheduleTran dtFeeTran = new SchoolFeeScheduleTran();
+                        dtFeeTran.FeeSchedule = rw.FeeSchedule;
+                        dtFeeTran.Code = rw.Code;
+                        dtFeeTran.Description = rw.Description;
+                        dtFeeTran.ToPost = rw.ToPost;
+                        dtFeeTran.DueDate = Convert.ToDateTime(rw.DueDate);
+                        dtFeeTran.Amount = rw.Amount;
+                        dtFeeTran.Category = rw.Category;
+                        dtFeeTran.AcademicYear = DTFeeSchedule.AcademicYear;
+                        dtFeeTran.BranchId = BranchID;
+
+                        HttpResponseMessage response2 = await FeeScheduleService.SaveFeeScheduleTran(dtFeeTran);
+                        if (response2.IsSuccessStatusCode)
+                        {
+                        }
+                    }
+
+                }
+
+                foreach (var rw in DSFeeScheduleTranTemp)
+                {
+                    if (rw.RowState == "Delete")
+                    {
+                        SchoolFeeScheduleTran Dt = new SchoolFeeScheduleTran();
+                        Dt.Id = rw.Id;
+                        Dt.FeeSchedule = rw.FeeSchedule;
+                        Dt.Code = rw.Code;
+                        Dt.Description = rw.Description;
+                        Dt.ToPost = rw.ToPost;
+                        Dt.DueDate = rw.DueDate;
+                        Dt.Amount = rw.Amount;
+
+                        HttpResponseMessage msg = await FeeScheduleService.DeleteFeeScheduleTrans(Dt);
+                        if (msg.IsSuccessStatusCode)
+                        {
+
+                        }
+                    }
+                }
+
+                IsOpen = true;
+                Success = "Updated Successfully";
+                DSFeeSchedule = (await FeeScheduleService.GetFeeScheduleList(BranchID, CmbAccYear))!.ToList();
+
+                DTFeeSchedule.Type = "";
+                DTFeeSchedule.FeeSchedule = "";
+                DTFeeSchedule.AcademicYear = "";
+                DTFeeSchedule.StartDate = Convert.ToDateTime(null);
+                DTFeeSchedule.Class = "";
+                DTFeeSchedule.Description = "";
+                btnSaveenable = true;
+                EditButtonLabel = "Edit";
+                btnAddenable = false;
+                btnDeleteenable = false;
+                //DSFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+                DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>();
+                DSFeeScheduleTranTemp = new List<SchoolFeeScheduleTran>();
+                await InvokeAsync(StateHasChanged);
+
+            }
+        }
+    }
+
+    public async Task Delete_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? you want to delete");
+        if (confirmed)
+        {
+            if (DTFeeSchedule.Type == null && DTFeeSchedule.FeeSchedule == null)
+            {
+                IsOpenDanger = true;
+                Failed = "Please Select Value !!";
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                IList<SchoolStudentTran> DTStudentTrans = (await FeeScheduleService.GetStudentFeeSchedule(DTFeeSchedule.FeeSchedule!, BranchID, CmbAccYear))!.ToList();
+                if (DTStudentTrans.Count > 0)
+                {
+                    IsOpenDanger = true;
+                    Failed = "Deletion not possible! FeeSchedule Exist for Students !!";
+                }
+                else
+                {
+                    if (FeeID != null)
+                    {
+                        SchoolFeeSchedule Dt = new SchoolFeeSchedule();
+                        Dt.Id = Convert.ToInt32(FeeID);
+                        Dt.FeeSchedule = DTFeeSchedule.FeeSchedule;
+
+                        HttpResponseMessage msg = await FeeScheduleService.DeleteFeeSchedule(Dt);
+                        if (msg.IsSuccessStatusCode)
+                        {
+                            DtoUserTrack dttrack = new DtoUserTrack();
+                            dttrack.UserId = user;
+                            dttrack.TableName = "School_FeeSchedule";
+                            dttrack.ActionDate = DateTime.Now;
+                            dttrack.ModuleName = "Student";
+                            dttrack.Reference = "College Portal";
+                            dttrack.Reason = FeeID;
+
+                            HttpResponseMessage msgTrack = await FeeScheduleService.SaveUserTrack(dttrack);
+                            if (msgTrack.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "Deleted Successfully";
+                                DSFeeSchedule = (await FeeScheduleService.GetFeeScheduleList(BranchID, CmbAccYear))!.ToList();
+
+                                DTFeeSchedule.Type = "";
+                                DTFeeSchedule.FeeSchedule = "";
+                                DTFeeSchedule.AcademicYear = "";
+                                DTFeeSchedule.StartDate = Convert.ToDateTime(null);
+                                DTFeeSchedule.Class = "";
+                                DTFeeSchedule.Description = "";
+                                //DSFeeScheduleTran = new List<SchoolFeeScheduleTran>();
+                                DSFeeScheduleTran = new ObservableCollection<SchoolFeeScheduleTran>();
+                                await InvokeAsync(StateHasChanged);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public async Task Apply_Click()
+    {
+        HideApply = false;
+        txtClassEnable = true;
+        txtShiftEnable = true;
+        txtCourseEnable = true;
+        btnOkenable = false;
+        btnCancelenable = false;
+
+        txtBusEnable = true;
+        txtModeEnable = true;
+        btOkenable = false;
+        btCancelenable = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Recurring_Click()
+    {
+        HideRecurring = false;
+        txtFrequencyEnable = true;
+        txtDurationEnable = true;
+        btnRecurringOkenable = false;
+        btnRecurringCancelenable = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // public async Task btnOk_Click()
+    // {
+    //     if (DTFeeSchedule.Type == "Fee")
+    //     {
+    //         if (DTStudentTrans.Shift == "All")
+    //         {
+    //             if (DTStudentTrans.CourseStream == "All")
+    //             {
+    //                 object StCount = await FeeScheduleService.GetStudCode(DTStudentTrans.CourseStream, DTStudentTrans.Class!, DTStudentTrans.Shift, CmbAccYear, BranchID);
+    //                 SchoolStudentTran dts = new SchoolStudentTran();
+    //                 dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+    //                 dts.CourseStream = DTStudentTrans.CourseStream;
+    //                 dts.Class = DTStudentTrans.Class;
+    //                 dts.Shift = DTStudentTrans.Shift;
+    //                 dts.AcademicYear = DTFeeSchedule.AcademicYear;
+    //                 dts.BranchId = BranchID;
+
+    //                 HttpResponseMessage response = await FeeScheduleService.UpdateStudentTrans(dts);
+    //                 if (response.IsSuccessStatusCode)
+    //                 {
+    //                     IsOpen = true;
+    //                     Success = "FeeSchedule applied for " + StCount + " Students ";
+    //                 }
+    //             }
+    //             else
+    //             {
+    //                 object StCount = await FeeScheduleService.GetStudCodeSecond(DTStudentTrans.Class!, DTStudentTrans.Shift, CmbAccYear, BranchID);
+    //                 SchoolStudentTran dts = new SchoolStudentTran();
+    //                 dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+    //                 dts.CourseStream = DTStudentTrans.CourseStream;
+    //                 dts.Class = DTStudentTrans.Class;
+    //                 dts.Shift = DTStudentTrans.Shift;
+    //                 dts.AcademicYear = DTFeeSchedule.AcademicYear;
+    //                 dts.BranchId = BranchID;
+
+    //                 HttpResponseMessage response = await FeeScheduleService.UpdateStudTrans(dts);
+    //                 if (response.IsSuccessStatusCode)
+    //                 {
+    //                     IsOpen = true;
+    //                     Success = "FeeSchedule applied for " + StCount + " Students ";
+    //                 }
+    //             }
+    //         }
+    //         else
+    //         {
+    //             if (DTStudentTrans.CourseStream == "All")
+    //             {
+    //                 object StCount = await FeeScheduleService.GetStudCodeThird(DTStudentTrans.CourseStream, DTStudentTrans.Class!, CmbAccYear, BranchID);
+    //                 SchoolStudentTran dts = new SchoolStudentTran();
+    //                 dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+    //                 dts.CourseStream = DTStudentTrans.CourseStream;
+    //                 dts.Class = DTStudentTrans.Class;
+    //                 dts.Shift = DTStudentTrans.Shift;
+    //                 dts.AcademicYear = DTFeeSchedule.AcademicYear;
+    //                 dts.BranchId = BranchID;
+
+    //                 HttpResponseMessage response = await FeeScheduleService.EditStudentTrans(dts);
+    //                 if (response.IsSuccessStatusCode)
+    //                 {
+    //                     IsOpen = true;
+    //                     Success = "FeeSchedule applied for " + StCount + " Students ";
+    //                 }
+    //             }
+    //             else
+    //             {
+    //                 object StCount = await FeeScheduleService.GetStudCodeFourth(DTStudentTrans.Class!, CmbAccYear, BranchID);
+    //                 SchoolStudentTran dts = new SchoolStudentTran();
+    //                 dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+    //                 dts.CourseStream = DTStudentTrans.CourseStream;
+    //                 dts.Class = DTStudentTrans.Class;
+    //                 dts.Shift = DTStudentTrans.Shift;
+    //                 dts.AcademicYear = DTFeeSchedule.AcademicYear;
+    //                 dts.BranchId = BranchID;
+
+    //                 HttpResponseMessage response = await FeeScheduleService.EditStudTrans(dts);
+    //                 if (response.IsSuccessStatusCode)
+    //                 {
+    //                     IsOpen = true;
+    //                     Success = "FeeSchedule applied for " + StCount + " Students ";
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    public async Task btnOk_Click()
+    {
+        object StCountAll = await FeeScheduleService.GetStudCountAll(DTStudentTrans.Class!, CmbAccYear, BranchID);
+        if (isOverWriteAll == false)
+        {
+            if (DTFeeSchedule.Type == "Fee")
+            {
+                if (DTStudentTrans.Shift == "All")
+                {
+                    if (DTStudentTrans.CourseStream == "All")
+                    {
+                        object StCount = await FeeScheduleService.GetStudCode(DTStudentTrans.CourseStream, DTStudentTrans.Class!, DTStudentTrans.Shift, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.UpdateStudentTrans(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        object StCount = await FeeScheduleService.GetStudCodeSecond(DTStudentTrans.Class!, DTStudentTrans.Shift, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.UpdateStudTrans(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (DTStudentTrans.CourseStream == "All")
+                    {
+                        object StCount = await FeeScheduleService.GetStudCodeThird(DTStudentTrans.CourseStream, DTStudentTrans.Class!, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.EditStudentTrans(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        object StCount = await FeeScheduleService.GetStudCodeFourth(DTStudentTrans.Class!, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.EditStudTrans(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (DTFeeSchedule.Type == "Fee")
+            {
+                if (DTStudentTrans.Shift == "All")
+                {
+                    if (DTStudentTrans.CourseStream == "All")
+                    {
+                        object StCount = await FeeScheduleService.GetStudCodeOverwrite(DTStudentTrans.CourseStream, DTStudentTrans.Class!, DTStudentTrans.Shift, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.UpdateStudentTransOverwrite(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        object StCount = await FeeScheduleService.GetStudCodeSecondOverwrite(DTStudentTrans.Class!, DTStudentTrans.Shift, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.UpdateStudTransOverwrite(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (DTStudentTrans.CourseStream == "All")
+                    {
+                        object StCount = await FeeScheduleService.GetStudCodeThirdOverwrite(DTStudentTrans.CourseStream, DTStudentTrans.Class!, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.EditStudentTransOverwrite(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        object StCount = await FeeScheduleService.GetStudCodeFourthOverwrite(DTStudentTrans.Class!, CmbAccYear, BranchID);
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee schedule will be applied for " + StCount + "/" + StCountAll + " Students, Do you want to proceed ? ");
+                        if (confirmed)
+                        {
+                            SchoolStudentTran dts = new SchoolStudentTran();
+                            dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                            dts.CourseStream = DTStudentTrans.CourseStream;
+                            dts.Class = DTStudentTrans.Class;
+                            dts.Shift = DTStudentTrans.Shift;
+                            dts.AcademicYear = DTFeeSchedule.AcademicYear;
+                            dts.BranchId = BranchID;
+
+                            HttpResponseMessage response = await FeeScheduleService.EditStudTransOverwrite(dts);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                IsOpen = true;
+                                Success = "FeeSchedule applied for " + StCount + " Students ";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    public async Task btnCancel_Click()
+    {
+        DTStudentTrans.Class = "";
+        DTStudentTrans.Shift = "";
+        DTStudentTrans.CourseStream = "";
+        txtClassEnable = false;
+        txtShiftEnable = false;
+        txtCourseEnable = false;
+        btnOkenable = true;
+        btnCancelenable = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task btOk_Click()
+    {
+        object StCount = await FeeScheduleService.GetStudCountTransport(DTStudentTrans.Bus_No!, DTStudentTrans.Bus_Mode!, DTFeeSchedule.AcademicYear!, BranchID);
+        SchoolStudentTran dts = new SchoolStudentTran();
+        dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+        dts.Bus_No = DTStudentTrans.Bus_No;
+        dts.Bus_Mode = DTStudentTrans.Bus_Mode;
+        dts.AcademicYear = DTFeeSchedule.AcademicYear;
+        dts.BranchId = BranchID;
+
+        HttpResponseMessage response = await FeeScheduleService.UpdateStudentTransSchedule(dts);
+        if (response.IsSuccessStatusCode)
+        {
+            IsOpen = true;
+            Success = "Schedule applied for " + StCount + " Students ";
+        }
+    }
+
+    public async Task btCancel_Click()
+    {
+        DTStudentTrans.Bus_No = "";
+        DTStudentTrans.Bus_Mode = "";
+        txtBusEnable = false;
+        txtModeEnable = false;
+        btOkenable = true;
+        btCancelenable = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task btnRecurringOk_ClickOLD()
+    {
+        int count, monthAdd; //i, j, month;
+                             //string strDatePrev, day, year;
+        monthAdd = Convert.ToInt32(txtDuration);
+
+        count = FeeMasterSession.Count();
+        if (FeeMasterSession[0].Category == "Recurring")
+        {
+            for (int k = 0; k < Convert.ToInt32(txtFrequency); k++)
+            {
+                foreach (var dr in FeeMasterSession)
+                {
+                    dr.FeeSchedule = FeeMasterSession[0].FeeSchedule;
+                    dr.Code = FeeMasterSession[0].Code;
+                    dr.Description = FeeMasterSession[0].Description;
+                    dr.ToPost = FeeMasterSession[0].ToPost;
+                    DateTime newdate = Convert.ToDateTime(FeeMasterSession[0].DueDate).AddMonths(k + 1);
+                    dr.DueDate = newdate;
+                    dr.Amount = FeeMasterSession[0].Amount;
+                    dr.Category = FeeMasterSession[0].Category;
+                    FeeMasterSession.Add(dr);
+                }
+            }
+            DSFeeScheduleTran = FeeMasterSession;
+            txtFrequency = "";
+            txtDuration = "";
+            txtFrequencyEnable = false;
+            txtDurationEnable = false;
+            btnRecurringOkenable = true;
+            btnRecurringCancelenable = true;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    int count, monthAdd, i, j, Day1;
+    string? strDatePrev, day, year, month;
+    public async Task btnRecurringOk_Click()
+    {
+        monthAdd = Convert.ToInt32(txtDuration);
+        FeeMasterSession = DSFeeScheduleTran;
+        count = FeeMasterSession.Count();
+        if (FeeMasterSession[0].Category == "Recurring")
+        {
+            strDatePrev = FeeMasterSession[0].DueDate.ToString();
+            day = FeeMasterSession[0].DueDate.ToString("dd");
+            Day1 = Convert.ToInt32(day);
+            month = FeeMasterSession[0].DueDate.ToString("MM");
+            year = FeeMasterSession[0].DueDate.ToString("yyyy");
+            List<SchoolFeeScheduleTran> ListSchoolFee = new List<SchoolFeeScheduleTran>();
+            SchoolFeeScheduleTran objSchoolFee = FeeMasterSession.FirstOrDefault()!;
+            ListSchoolFee.Add(objSchoolFee);
+
+            for (int i = 1; i < Convert.ToInt32(txtFrequency); i++)
+            {
+                SchoolFeeScheduleTran newObjSchoolFee = new SchoolFeeScheduleTran();
+
+                newObjSchoolFee.FeeSchedule = FeeMasterSession[0].FeeSchedule;
+                newObjSchoolFee.Code = FeeMasterSession[0].Code;
+                newObjSchoolFee.Description = FeeMasterSession[0].Description;
+                newObjSchoolFee.ToPost = FeeMasterSession[0].ToPost;
+                newObjSchoolFee.Amount = FeeMasterSession[0].Amount;
+                newObjSchoolFee.Category = FeeMasterSession[0].Category;
+                newObjSchoolFee.DiscAmount = FeeMasterSession[0].DiscAmount;
+                newObjSchoolFee.RowState = "Insert";
+                if (FeeDueDate == Convert.ToDateTime("01/01/0001 12:00:00 AM"))
+                {
+                    newObjSchoolFee!.DueDate = objSchoolFee.DueDate.AddMonths(Convert.ToInt32(txtDuration));
+                }
+                else
+                    newObjSchoolFee.DueDate = FeeDueDate.AddMonths(Convert.ToInt32(txtDuration));
+                FeeDueDate = newObjSchoolFee.DueDate;
+                FeeMasterSession.Add(newObjSchoolFee);
+                ListSchoolFee.Add(newObjSchoolFee);
+            }
+            
+            DSFeeScheduleTran = FeeMasterSession;
+            txtFrequency = "";
+            txtDuration = "";
+            txtFrequencyEnable = false;
+            txtDurationEnable = false;
+            btnRecurringOkenable = true;
+            btnRecurringCancelenable = true;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task btnRecurringCancel_Click()
+    {
+        txtFrequency = "";
+        txtDuration = "";
+        txtFrequencyEnable = false;
+        txtDurationEnable = false;
+        btnRecurringOkenable = true;
+        btnRecurringCancelenable = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    //public async Task OnFeeEdit(int ID)
+    //{
+    //    mode = "Edit";
+    //    FeeScheduleID = ID.ToString();
+
+    //    SelectedData = await FeeScheduleService.GetScheduleByDocId(ID);
+    //    //EditContext = new EditContext(SelectedData);
+    //    InvokeAsync(StateHasChanged);
+    //}
+
+    public async Task FeeSave_Click()
+    {
+        SchoolFeeMaster dtFee = new SchoolFeeMaster();
+
+        if (string.IsNullOrWhiteSpace(DTFeeSchedule.FeeSchedule))
+        {
+            Valid = "Schedule Mandatory";
+        }
+        else if (string.IsNullOrWhiteSpace(DTFeeSchedule.Type))
+        {
+            Valid = "Please Enter Type";
+        }
+        else if (string.IsNullOrWhiteSpace(SelectedData.Code))
+        {
+            Valid = "Please Enter Code";
+        }
+        else if (string.IsNullOrWhiteSpace(SelectedData.Description))
+        {
+            Valid = "Please Enter Description";
+        }
+        else if (SelectedData.PostTo == 0)
+        {
+            Valid = "Please Enter To Post";
+        }
+        else if (SelectedData.DueDate.ToString() == "01/01/0001 12:00:00 AM")
+        {
+            Valid = "Please Enter Due Date";
+        }
+        else if (SelectedData.Amount == Convert.ToDecimal(0.00))
+        {
+            Valid = "Enter Amount";
+        }
+        else
+        {
+            Valid = "";
+            SchoolFeeScheduleTran obj = new SchoolFeeScheduleTran();
+            obj.Code = SelectedData.Code;
+            obj.Description = SelectedData.Description;
+            obj.Category = SelectedData.Category;
+            obj.ToPost = SelectedData.PostTo;
+            obj.DueDate = Convert.ToDateTime(SelectedData.DueDate);
+            obj.Amount = Convert.ToDecimal(SelectedData.Amount.ToString("0.00"));
+            obj.DiscAmount = Convert.ToDecimal(SelectedData.Discount.ToString("0.00"));
+
+            if (mode == "New")
+            {
+                if (ObjTranEdit != null)
+                {
+                    if (ObjTranEdit.Id != 0)
+                    {
+                        DSFeeScheduleTran.Remove(ObjTranEdit);
+                        obj.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                        obj.Id = ObjTranEdit.Id;
+                        obj.RowState = "Update";
+                        ObjTranEdit = null!;
+                    }
+                    else
+                    {
+                        obj.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                        obj.Category = await FeeScheduleService.GetCategory(SelectedData.Code, BranchID);
+                        obj.RowState = "Insert";
+                    }
+                    DSFeeScheduleTran.Add(obj);
+                }
+                else
+                {
+                    obj.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                    obj.Category = await FeeScheduleService.GetCategory(SelectedData.Code, BranchID);
+                    obj.RowState = "Insert";
+                    DSFeeScheduleTran.Add(obj);
+                }
+            }
+            else if (mode == "Edit")
+            {
+                if (ObjTranEdit != null)
+                {
+                    if (ObjTranEdit.Id != 0)
+                    {
+                        DSFeeScheduleTran.Remove(ObjTranEdit);
+                        obj.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                        obj.Id = ObjTranEdit.Id;
+                        obj.RowState = "Update";
+                        ObjTranEdit = null!;
+                    }
+                    else
+                    {
+                        obj.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                        obj.Category = await FeeScheduleService.GetCategory(SelectedData.Code, BranchID);
+                        obj.RowState = "Insert";
+                    }
+                    DSFeeScheduleTran.Add(obj);
+                }
+                else
+                {
+                    obj.FeeSchedule = DTFeeSchedule.FeeSchedule;
+                    obj.Category = await FeeScheduleService.GetCategory(SelectedData.Code, BranchID);
+                    obj.RowState = "Insert";
+                    DSFeeScheduleTran.Add(obj);
+                }
+            }
+            SelectedData.Code = "";
+            SelectedData.Description = "";
+            SelectedData.PostTo = Convert.ToInt32(null);
+            SelectedData.DueDate = objAccYear.StartDate;
+            SelectedData.Amount = Convert.ToDecimal(null);
+            SelectedData.Discount = Convert.ToInt32(null);
+            await GvFeemaster!.Refresh();
+        }
+    }
+
+    public async Task Code_Click(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, string> args)
+    {
+        string Val = args.ItemData;
+        //SelectedData.Description = cmbFeeMaster.Where(b => b.Code!.Trim() == Val).Select(b => b.Description).FirstOrDefault();
+        if (SelectedDescription == null)
+        {
+            SelectedData.Description = cmbFeeMaster.Where(b => b.Code!.Trim() == Val).Select(b => b.Description).FirstOrDefault();
+        }
+        else
+        {
+            SelectedData.Description = SelectedDescription;
+        }
+        SelectedData.PostTo = cmbFeeMaster.Where(b => b.Code!.Trim() == Val).Select(b => b.PostTo).FirstOrDefault();
+        if (SelectedData.DueDate.ToString() == "01/01/0001 12:00:00 AM")
+            SelectedData.DueDate = cmbFeeMaster.Where(b => b.Code!.Trim() == Val).Select(b => b.DueDate).FirstOrDefault();
+        else
+            SelectedData.DueDate = SelectedData.DueDate;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async void OnCommandClicked(CommandClickEventArgs<SchoolFeeScheduleTran> args)
+    {
+        if (args.CommandColumn.Title == "Edit")
+        {
+            await EditDetails(args.RowData);
+        }
+        else if (args.CommandColumn.Title == "Delete")
+        {
+            await DeleteDetails(args.RowData);
+            await GvFeemaster!.Refresh();
+        }
+    }
+
+    public async Task EditDetails(SchoolFeeScheduleTran dataitem)
+    {
+        SelectedData.Code = dataitem.Code;
+        SelectedData.Description = dataitem.Description;
+        SelectedDescription = SelectedData.Description;
+        SelectedData.Category = dataitem.Category;
+        SelectedData.PostTo = dataitem.ToPost;
+        SelectedData.DueDate = dataitem.DueDate;
+        SelectedData.Amount = dataitem.Amount;
+        SelectedData.Discount = Convert.ToInt32(dataitem.DiscAmount);
+        ObjTranEdit = dataitem;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task DeleteDetails(SchoolFeeScheduleTran dataitem)
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? you want to delete");
+        if (confirmed)
+        {
+            if (mode!.ToString() == "New")
+            {
+                DSFeeScheduleTran.Remove(dataitem);
+            }
+            else
+            {
+                dataitem.RowState = "Delete";
+                DSFeeScheduleTranTemp.Add(dataitem);
+                DSFeeScheduleTran.Remove(dataitem);
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task btOkReg_Click()
+    {
+        object StCount = await FeeScheduleService.GetStudCountRegistration(JoiningYear!, DTFeeSchedule.AcademicYear!, BranchID);
+        SchoolStudentTran dts = new SchoolStudentTran();
+        dts.FeeSchedule = DTFeeSchedule.FeeSchedule;
+        dts.Status = JoiningYear;
+        dts.AcademicYear = DTFeeSchedule.AcademicYear;
+        dts.BranchId = BranchID;
+
+        HttpResponseMessage response = await FeeScheduleService.UpdateStudentAdmissionSchedule(dts);
+        if (response.IsSuccessStatusCode)
+        {
+            IsOpen = true;
+            Success = "Schedule applied for " + StCount + " Students ";
+        }
+    }
+
+    public async Task btCancelReg_Click()
+    {
+        JoiningYear = "";
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Back_Click()
+    {
+        navigationManager.NavigateTo(navigationManager.BaseUri + "FeeScheduleRegister");
+        await InvokeAsync(StateHasChanged);
+    }
+    public string classLabel = "Program";
+    private async Task TypeValueChangeHandler(ChangeEventArgs<string, string> args)
+    {
+        //txtClass = false;
+        if (args.Value == "Transportation")
+        {
+            classLabel = "Route";
+            Class = (await FeeScheduleService.GetRoute(BranchID, CmbAccYear))!.ToList();
+
+        }
+        else
+        {
+            classLabel = "Class";
+            Class = (await StudentMasterService.GetClass(BranchID, CmbAccYear))!.ToList();
+        }
+        //txtClass = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+}

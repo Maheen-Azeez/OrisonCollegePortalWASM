@@ -1,0 +1,957 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager uriHelper
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Shared.Entities
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Popups
+@using OrisonCollegePortal.Shared.Entities.Finance
+@using OrisonCollegePortal.Shared.Entities.General
+@using OrisonCollegePortal.Client.Services
+@using Microsoft.Extensions.Localization
+@using System.Web;
+@using OrisonCollegePortal.Client.Pages.ErrorHandler
+
+@inject HttpClient http
+@inject IJSRuntime JsRuntime
+@inject IConfiguration IConfig
+@inject ToastService ToastService
+@inject CacheVersionService VersionServ
+@inject GlobalStudentService globalStudentServ
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager StudentService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IInvAccounts _IInvAccounts
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/MainLayout.css" rel="stylesheet" />
+    <style>
+        #wrapper .main-content {
+            min-height: @DeviceHeight;
+            overflow-y: visible;
+            background-color: #f2f2f280;
+        }
+
+        .w3-wrapper {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 15px;
+            position: relative;
+            padding: 11px 7px 15px 7px;
+            display: block;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            box-sizing: border-box;
+            height: 54px;
+            width: 38px;
+        }
+
+        .Ar {
+            background-image: url("./images/Arabic.png");
+        }
+
+        .En {
+            background-image: url("./images/English.png");
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            padding-left: 100px;
+            text-align: center;
+        }
+    </style>
+    <style>
+        div.update-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 8px;
+            background-color: #fc9003;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        span.blinkUpdate {
+            display: block;
+            width: 8px;
+            height: 8px;
+            background-color: #fc9003;
+            opacity: 0.7;
+            border-radius: 50%;
+            animation: blink 1s linear infinite;
+        }
+
+        @@keyframes blink {
+            100% {
+                transform: scale(2, 2);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<CascadingValue Value="this">
+    <div id="wrapper">
+        @if (btnFullScreen == false)
+        {
+            <!--header-section  declaration -->
+            <div style="border-bottom: solid 1px #C9CCD4;">
+                @*<div class="top-row px-4">
+            <CultureSwitcher />
+            </div>*@
+                <SfToolbar Height="65px" EnableRtl="@Lang">
+                    <ToolbarEvents Clicked="@Toggle"></ToolbarEvents>
+                    <ToolbarItems>
+                        <ToolbarItem PrefixIcon="fa fa-bars" TooltipText="Menu">
+                            <Template>
+                                <div class="e-folder">
+                                    <img src="Images/IcMenu.png" style="width: 25px; height: 25px;" alt="Orison" class="avatar-xxl mb-1">
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                        @if (Mobile != true)
+                        {
+                            <ToolbarItem Align="@ItemAlign.Left">
+                                <Template>
+                                    <div class="e-folder">
+                                        <img src="Images/BackgroundOrisonLogo.png" style="width: 38px; height: 35px;" alt="Orison" class="avatar-xxl mb-1">
+                                    </div>
+                                </Template>
+                            </ToolbarItem>
+                            <ToolbarItem Align="@ItemAlign.Left">
+                                <Template>
+                                    <div class="e-folder pl-3">
+                                        <div class="row">
+                                            <label style=" color: #4758A8; font-family: inherit; font-size: 14px; font-weight: 500;">@Localizer["Orison College Portal"]</label>
+                                        </div>
+                                        <div>
+                                            @if (VerionUpdate)
+                                            {
+                                                <a title="Version update" @onclick="Reload" style="text-decoration:none;cursor:pointer;">
+                                                    <div class="update-indicator">
+                                                        <span class="blinkUpdate"></span>
+                                                    </div>
+                                                    <span style="font-size:10px">V @CacheVersion</span>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a title="Latest Version" style="text-decoration:none;cursor:pointer;">
+                                                    <span style="font-size:10px">V @CacheVersion</span>
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </Template>
+                            </ToolbarItem>
+                        }
+                        <ToolbarItem Align="@ItemAlign.Center">
+                            <Template>
+                                <div class="e-folder">
+                                    <img src="@imgSchoolLogo" style="width: 200px; height: 58px;" alt="Orison" class="avatar-xxl mb-1">
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                        <ToolbarItem Align="@ItemAlign.Right">
+                            <Template>
+                                <div>
+                                    <a title="AcademicYear">
+                                        <span style=" vertical-align: super;color: #263871;" @onclick="@(() => ConfirmDlgVisible = true)"><font size="2">  @($"{Localizer["AcademicYear"]} ({AccYear})")</font></span>
+                                    </a>
+                                </div>
+
+                                <SfDialog @bind-Visible="@ConfirmDlgVisible" Width="400px" ShowCloseIcon="true">
+                                    <DialogTemplates>
+                                        <Header>
+                                            <div style="padding-bottom:5px;">
+                                                "Change AcademicYear"
+                                            </div>
+                                        </Header>
+                                        <Content>
+                                            <div class="e-row">
+                                                <div style=" width: 315px; margin: 0px auto; height: 60px; padding-top: 10px;">
+                                                    <div style="display: inline-block;">
+                                                        <label class="form-label mb-0 mt-2">"Academic Year":</label>
+                                                    </div>
+                                                    <div style="float: right;">
+
+                                                        <SfDropDownList TValue="string" TItem="SchoolAcademicYear" @bind-Value="AcademicYear" PopupHeight="230px" Placeholder="@AccYear" DataSource="@AcademicYearList">
+                                                            <DropDownListFieldSettings Text="AcademicYear" Value="AcademicYear"></DropDownListFieldSettings>
+                                                        </SfDropDownList>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style="width: 315px; margin: 0px auto;">
+                                                Do You Want Change AcademicYear ?
+                                            </div>
+                                            <DialogButtons>
+                                                <div style="margin-left: 185px; padding-bottom:10px;">
+                                                    <SfButton Content="Yes" CssClass="e-btn" @onclick="yesClick" />
+                                                    <SfButton Content="No" CssClass="e-btn" OnClick="@HideDialog" />
+                                                </div>
+
+                                            </DialogButtons>
+                                        </Content>
+                                    </DialogTemplates>
+                                    <DialogPositionData X="right" Y="63" />
+                                </SfDialog>
+
+                            </Template>
+                        </ToolbarItem>
+
+                        <ToolbarItem Align="@ItemAlign.Right">
+                            <Template>
+                                @* <div class="e-folder">
+                            <CultureSwitcher />
+                            </div> *@
+                                <div class="top-row px-4">
+                                    <SfButton IconCss="@IconClass" CssClass="e-outline" OnClick="@LanguageChange"></SfButton>
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                        <ToolbarItem Align="@ItemAlign.Right">
+                            <Template>
+                                <div>
+                                    <a @onclick="@Home_Click" title="Home">
+                                        <img src="Images/iconshome.png" style="width:27px;height:27px;" alt="Home" class="avatar-xxl mb-1">
+                                    </a>
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+
+                        @* <ToolbarItem Align="@ItemAlign.Right">
+                    <Template>
+                    <div>
+                    <div class="dropdown">
+                    <a class="nav-link d-none d-sm-inline-block" data-bs-toggle="dropdown">
+                    <span style=" vertical-align: super; color: #404E67;"> @UserName</span>
+                    </a>
+                    <div class="dropdown-content" style="text-align:left;">
+                    <a class="dropdown-item"><i class="oi oi-person"></i> @Localizer["Profile"]</a>
+                    <a class="dropdown-item" @onclick="LogOutClick"><i class="oi oi-account-logout"></i> @Localizer["Log out"]</a>
+                    <a class="dropdown-item" @onclick="Reload"><i class="oi oi-reload"></i> Reload</a>
+                    @if (VerionUpdate)
+                    {
+                    <a class="dropdown-item" @onclick="Reload">
+                    <div class="update-indicator">
+                    <span class="blinkUpdate"></span>
+                    </div>
+                    <span>Update</span>
+                    </a>
+                    }
+                    </div>
+                    </div>
+                    </div>
+                    </Template>
+                    </ToolbarItem>
+                    <ToolbarItem CssClass="e-custom" Align="@ItemAlign.Right">
+                    <Template>
+                    <div class="image-container">
+                    <img height="20" class="img-round" src="Images/user.png" alt="Orison Admin" />
+                    </div>
+                    </Template>
+                    </ToolbarItem> *@
+                        <ToolbarItem CssClass="e-custom" Align="@ItemAlign.Right">
+                            <Template>
+                                <div class="dropdown">
+                                    <a class="nav-link d-none d-sm-inline-block" data-bs-toggle="dropdown">
+                                        <span style=" vertical-align: super; color: #404E67;"> @UserName</span>
+                                        <img height="20" class="img-round" src="Images/user.png" style="vertical-align:bottom;" alt="Orison Admin" />
+                                    </a>
+                                    <div class="dropdown-content" style="text-align:left;">
+                                        <a class="dropdown-item"><i class="oi oi-person"></i>"Profile"</a>
+                                        <a class="dropdown-item" @onclick="LogOutClick"><i class="oi oi-account-logout"></i> "Log out"</a>
+                                        <a class="dropdown-item" @onclick="Reload"><i class="oi oi-reload"></i> Reload</a>
+                                        @if (VerionUpdate)
+                                        {
+                                            <a class="dropdown-item" @onclick="Reload">
+                                                <div class="update-indicator">
+                                                    <span class="blinkUpdate"></span>
+                                                </div>
+                                                <span>Update</span>
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                    </ToolbarItems>
+                </SfToolbar>
+            </div>
+            <!-- end of header-section -->
+            <!-- sidebar element declaration -->
+            <SfSidebar Animate="false" EnableGestures="false" EnablePersistence="true" HtmlAttributes="@HtmlAttribute" Width="230px" Position="@Position" EnableRtl="@Lang" Target=".main-content" @ref="Sidebar" MediaQuery="(min-width:600px)" @bind-IsOpen="SidebarToggle">
+                <ChildContent>
+                    <div class="main-menu">
+                        <div class="pt-3" style="overflow-x:hidden;">
+                            @*<SfTreeView EnablePersistence="true" CssClass="main-treeview" @ref="TreeView" ExpandOn="@Expand" TValue="TreeData">*@
+                            <SfTreeView EnablePersistence="@SfTreeView" CssClass="main-treeview" @ref="TreeView" ExpandOn="@Expand" TValue="TreeData" EnableRtl="@Lang">
+                                @*<TreeViewEvents TValue="TreeData" NodeSelected="OnSelect"></TreeViewEvents>*@
+                                <TreeViewEvents TValue="TreeData" NodeClicked="OnSelect"></TreeViewEvents>
+                                <TreeViewFieldsSettings Id="nodeId" Text="nodeText" IconCss="iconCss" DataSource="treedata" HasChildren="hasChild" ParentID="pid">
+                                </TreeViewFieldsSettings>
+                            </SfTreeView>
+                        </div>
+                        @*  <div class="footer text-right">
+                    <label>V @CacheVersion</label>
+                    </div> *@
+                    </div>
+                </ChildContent>
+            </SfSidebar>
+
+        }
+        <ToastComponent />
+
+        <SfFab title="@titleFullScreeen" Position="FabPosition.BottomLeft" @onclick="FullScreenClick" CssClass="e-btn" IconCss="fa fa-arrows-alt"></SfFab>
+        <!-- end of sidebar element -->
+        <!-- main-content declaration -->
+        <div class="main-content" id="main-text">
+            <div class="sidebar-content">
+                <div style="height:@DeviceHeight;overflow-y:auto;overflow-x:hidden;">
+                    @Body
+                </div>
+            </div>
+        </div>
+    </div>
+</CascadingValue>
+
+@code {
+    SfTreeView<TreeData>? TreeView;
+    SfSidebar? Sidebar;
+    private bool VerionUpdate { get; set; } = false;
+    List<dtoStudentRegisterDefault> StudentList = new List<dtoStudentRegisterDefault>();
+    List<dtoStudentRegisterDefault> StudentListOTHERS = new List<dtoStudentRegisterDefault>();
+    public List<dtoStudentRegisterDefault> ParentName = new List<dtoStudentRegisterDefault>();
+    public string? Category;
+    public ExpandAction Expand = ExpandAction.Click;
+    public SidebarPosition Position { get; set; } = SidebarPosition.Left;
+    public bool SidebarToggle = false;
+    public bool btnFullScreen = false;
+    public bool SfTreeView = false, Mobile = false;
+    public string? UserName = "", Company, DeviceHeight, titleFullScreeen = "FullScreen";
+    string? HomeUrl, LogoutUrl;
+    int? BranchID, UserID;
+    decimal? MobileWidth;
+    string? imgSchoolLogo, AccYear, AcademicYear;
+    private bool ConfirmDlgVisible { get; set; } = false;
+    private string? CacheVersion { get; set; }
+
+    public List<SchoolAcademicYear>? AcademicYearList;
+    DtoLoginModel? info = new DtoLoginModel();
+    public IList<MastDesignation> CmbMiscMaster = new List<MastDesignation>();
+    Dictionary<string, object> HtmlAttribute = new Dictionary<string, object>()
+    {
+        {"class", "sidebar-treeview" }
+    };
+    public void Toggle(ClickEventArgs args)
+    {
+        if (args.Item.TooltipText == "Menu")
+        {
+            SidebarToggle = !SidebarToggle;
+        }
+    }
+    public async Task FullScreenClick()
+    {
+        btnFullScreen = !btnFullScreen;
+        var dimension = await JsRuntime.InvokeAsync<DtoWindowDimension>("getWindowDimensions");
+        if (btnFullScreen)
+        {
+            DeviceHeight = dimension.Height + "px";
+            MobileWidth = dimension.Width;
+            titleFullScreeen = "Close FullScreen";
+        }
+        else
+        {
+            DeviceHeight = dimension.Height - 80 + "px";
+            MobileWidth = dimension.Width;
+            titleFullScreeen = "FullScreen";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+    public void LogOutClick()
+    {
+        SessionStorage.ClearAsync();
+        uriHelper.NavigateTo(LogoutUrl!);
+    }
+    public void Home_Click()
+    {
+        SessionStorage.ClearAsync();
+        uriHelper.NavigateTo(HomeUrl!);
+    }
+    private async Task Reload()
+    {
+        await JsRuntime.InvokeVoidAsync("clearCache");
+        uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+        await VersionChecker();
+    }
+    public async Task VersionChecker()
+    {
+        try
+        {
+            CacheVersion = IConfig.GetValue<string>("ClientVersion:VersionNo");
+            string ServerVersion = await VersionServ.GetCacheVersion();
+            if (CacheVersion != ServerVersion)
+            {
+                VerionUpdate = true;
+            }
+            else
+            {
+                VerionUpdate = false;
+                CacheVersion = ServerVersion;
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public class TreeData
+    {
+        public string? nodeId { get; set; }
+        public string? nodeText { get; set; }
+        public string? iconCss { get; set; }
+        public bool hasChild { get; set; }
+        public string? pid { get; set; }
+    }
+    private List<TreeData> treedata = new List<TreeData>();
+
+    public IList<SchoolWebMenuSettings>? MenuList = new List<SchoolWebMenuSettings>();
+
+    public bool EHome { get; set; }
+    public bool EStudentRegister { get; set; }
+    public bool EParentRegister { get; set; }
+    public bool ETransaction { get; set; }
+    public bool EReceiptRegister { get; set; }
+    public bool EOldReceiptRegister { get; set; }
+    //add general
+    public bool EGeneralReceiptRegister { get; set; }
+    //add general
+    public bool EPreRegistrationRegister { get; set; }
+    public bool EReRegistrationRegister { get; set; }
+    public bool EMaster { get; set; }
+    public bool EClassMaster { get; set; }
+    public bool EDivisionMaster { get; set; }
+    public bool EFeeMaster { get; set; }
+    public bool EFeeSchedule { get; set; }
+    public bool EAdditionalFeeMaster { get; set; }
+    public bool EDiscountMaster { get; set; }
+    public bool EAdditionalDiscountMaster { get; set; }
+    public bool EMiscMaster { get; set; }
+    public bool ERegister { get; set; }
+    public bool EDocumentRegister { get; set; }
+    public bool ECAIESubjectRegister { get; set; }
+    public bool ECAIEPaidNotPaid { get; set; }
+    public bool EFees { get; set; }
+    public bool EBulkPosting { get; set; }
+    public bool EMassPosting { get; set; }
+    public bool EStudentFeeRegister { get; set; }
+    public bool EFeeWiseRegister { get; set; }
+    public bool ETermFeeRegister { get; set; }
+    public bool EParentFeeRegister { get; set; }
+    public bool EFeeConflictRegister { get; set; }
+    public bool EStudentStatement { get; set; }
+    public bool ETaxInvoice { get; set; }
+    public bool EInvoiceGeneration { get; set; }
+    public bool ETaxInvoiceRegister { get; set; }
+    public bool EIDCard { get; set; }
+    public bool EInfirmaryRegister { get; set; }
+    public bool ESalesTaxInvoiceRegister { get; set; }
+    public bool EOnlinePaymentReceipt { get; set; }
+    public bool EProformaInvoice { get; set; }
+    public bool EStudentFeeRegisterDetailed { get; set; }
+    public bool ECreditNote { get; set; }
+    public bool ETransportationRegister { get; set; }
+    public bool ERollNoRegister { get; set; }
+    public bool EBulkUpdate { get; set; }
+    public bool EExcelUpload { get; set; }
+    public bool EEmiratesIDReader { get; set; }
+    public bool EAchievementRegister { get; set; }
+    public bool ERosterReport { get; set; }
+    public bool ESiblingsRegister { get; set; }
+    public bool ENotesRegister { get; set; }
+    public bool EPaymentLinkGeneration { get; set; }
+    public bool ETemplateMaster { get; set; }
+    public bool EStudentFinancial { get; set; }
+    public bool EFeePost { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            base.OnInitialized();
+
+            // UserName = await SessionStorage.GetItemAsync<string>("Name");
+            // UserID = await SessionStorage.GetItemAsync<string>("UserID");
+            // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+            // Company = await SessionStorage.GetItemAsync<string>("Company");
+            // AccYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+            //Con = await SessionStorage.GetItemAsync<string>("Con");
+            await GetLoginInfo();
+            if (info != null)
+            {
+                await VersionChecker();
+                //UserName = info.Username;
+                UserName = info.Name;
+                UserID = info.UserID;
+                BranchID = info.BranchID;
+                Category = info.Category;
+                HomeUrl = await StudentService.getHomeUrl();
+                LogoutUrl = await StudentService.getLogoutUrl();
+
+                Company = await StudentService.GetCompany(BranchID);
+                AccYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+                if (AccYear == null)
+                {
+                    AccYear = await StudentService.GetCurrentAcademicYear(BranchID);
+                    await SessionStorage.SetItemAsync("Company", Company);
+                    await SessionStorage.SetItemAsync("AcademicYear", AccYear);
+
+                    // CmbMiscMaster = (await StudentMasterService.BindComboBox("All"))!.ToList();
+                    // CacheVersion = CmbMiscMaster.Where(a => a.Source == "StudentModuleVersion").Select(a => a.Description).FirstOrDefault();
+                    // CacheVersion = "1.0.004";
+                }
+
+                //Device Settings
+                var dimension = await JsRuntime.InvokeAsync<DtoWindowDimension>("getWindowDimensions");
+                DeviceHeight = dimension.Height - 80 + "px";
+                MobileWidth = dimension.Width;
+                await SessionStorage.SetItemAsync("MobileWidth", MobileWidth);
+                if (MobileWidth < 600)
+                    Mobile = true;
+                else
+                    Mobile = false;
+                //Device Settings
+
+                //Localization Settings
+                string Language = info.Language!;
+                if (Language == null || Language == "en-US")
+                {
+                    await JsRuntime.InvokeVoidAsync("addCss", "LTR");
+                    Position = SidebarPosition.Left;
+                    Lang = false;
+                }
+                else
+                {
+                    await JsRuntime.InvokeVoidAsync("addCss", "RTL");
+                    Position = SidebarPosition.Right;
+                    Lang = true;
+                }
+                //Localization Settings
+                string Logo = await StudentService.getLogo(BranchID);
+                object LogoUrl = await StudentService.getLogoUrl();
+                imgSchoolLogo = LogoUrl.ToString() + "LogoWithName/" + Logo;
+                AcademicYearList = (await StudentService.GetAcademicYear(BranchID))!.ToList();
+                LoadGlobalData();
+                MenuList = (await StudentService.EnableMenu("SidebarMenu"))!.ToList();
+                EHome = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "HomeMenu").Select(a => a.Visible).FirstOrDefault());
+                EStudentRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "StudentRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+               // EParentRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "ParentRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                //ETransaction = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "TransactionMenu").Select(a => a.Visible).FirstOrDefault());
+               // EReceiptRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "ReceiptRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                //General Receipt
+               // EGeneralReceiptRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "GeneralReceiptRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                //EGeneralReceiptRegister = true;
+                //
+               // EOldReceiptRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "OldReceiptRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+               // EPreRegistrationRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "PreRegistrationRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EReRegistrationRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "ReRegistrationRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                EMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "MasterMenu").Select(a => a.Visible).FirstOrDefault());
+                EClassMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "ClassMasterMenu").Select(a => a.Visible).FirstOrDefault());
+                EDivisionMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "DivisionMasterMenu").Select(a => a.Visible).FirstOrDefault());
+                EFeeMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "FeeMasterMenu").Select(a => a.Visible).FirstOrDefault());
+                EFeeSchedule = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "FeeScheduleMenu").Select(a => a.Visible).FirstOrDefault());
+                EAdditionalFeeMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "AdditionalFeeMasterMenu").Select(a => a.Visible).FirstOrDefault());
+                EDiscountMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "DiscountMasterMenu").Select(a => a.Visible).FirstOrDefault());
+                EAdditionalDiscountMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "AdditionalDiscountMasterMenu").Select(a => a.Visible).FirstOrDefault());
+                EMiscMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "MiscMasterMenu").Select(a => a.Visible).FirstOrDefault());
+                ERegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "RegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                //EDocumentRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "DocumentRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                //ECAIESubjectRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "CAIESubjectRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                //ECAIEPaidNotPaid = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "CAIEPaidNotPaidMenu").Select(a => a.Visible).FirstOrDefault());
+                EFees = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "FeesMenu").Select(a => a.Visible).FirstOrDefault());
+                EBulkPosting = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "BulkPostingMenu").Select(a => a.Visible).FirstOrDefault());
+                EMassPosting = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "MassPostingMenu").Select(a => a.Visible).FirstOrDefault());
+                EStudentFeeRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "StudentFeeRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                EFeeWiseRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "FeeWiseRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+              //  ETermFeeRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "TermFeeRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                EParentFeeRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "ParentFeeRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                EFeeConflictRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "FeeConflictRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                EStudentStatement = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "StudentStatementMenu").Select(a => a.Visible).FirstOrDefault());
+                EFeePost = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "FeePostMenu").Select(a => a.Visible).FirstOrDefault());              
+                // ETaxInvoice = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "TaxInvoiceMenu").Select(a => a.Visible).FirstOrDefault());
+               // EInvoiceGeneration = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "InvoiceGenerationMenu").Select(a => a.Visible).FirstOrDefault());
+               // ETaxInvoiceRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "TaxInvoiceRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EIDCard = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "IDCardMenu").Select(a => a.Visible).FirstOrDefault());
+             //   EInfirmaryRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "InfirmaryRegister").Select(a => a.Visible).FirstOrDefault());
+               // ESalesTaxInvoiceRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "SalesTaxInvoiceMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EOnlinePaymentReceipt = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "OnlinePaymentReceiptMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EProformaInvoice = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "ProformaInvoiceMenu").Select(a => a.Visible).FirstOrDefault());
+                EStudentFeeRegisterDetailed = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "StudentFeeDetailsMenu").Select(a => a.Visible).FirstOrDefault());
+               // ECreditNote = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "CreditNoteMenu").Select(a => a.Visible).FirstOrDefault());
+              //  ETransportationRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "TransportationRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+             //   ERollNoRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "RollNoRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+                EBulkUpdate = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "BulkUpdateMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EEmiratesIDReader = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "EmiratesIDReaderMenu").Select(a => a.Visible).FirstOrDefault());
+             //   EAchievementRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "AchievementRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+               // ERosterReport = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "RosterReportMenu").Select(a => a.Visible).FirstOrDefault());
+               // ESiblingsRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "SiblingsRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+              //  ENotesRegister = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "NotesRegisterMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EPaymentLinkGeneration = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "PaymentLinkGenerationMenu").Select(a => a.Visible).FirstOrDefault());
+              //  ETemplateMaster = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "TemplateMasterMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EStudentFinancial = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "StudentFinancialMenu").Select(a => a.Visible).FirstOrDefault());
+              //  EExcelUpload = Convert.ToBoolean(MenuList.Where(a => a.MenuName == "ExcelUploadMenu").Select(a => a.Visible).FirstOrDefault());
+             }
+            if (EHome)
+                treedata.Add(new TreeData { nodeId = "01", nodeText = Localizer["Home"], iconCss = "fa fa-home" });
+
+            if (EStudentRegister)
+                treedata.Add(new TreeData { nodeId = "02", nodeText = Localizer["Students Register"], iconCss = "oi oi-people" });
+
+            if (EMaster)
+            {
+                treedata.Add(new TreeData { nodeId = "03", nodeText = Localizer["Master"], iconCss = "fa fa-gear", hasChild = true });
+
+              
+                if (EFeeMaster)
+                    treedata.Add(new TreeData { nodeId = "03-01", nodeText = Localizer["Fee Master"], iconCss = "fa fa-file", pid = "03" });
+
+                if (EFeeSchedule)
+                    treedata.Add(new TreeData { nodeId = "03-02", nodeText = Localizer["Fee Schedule"], iconCss = "fa fa-calendar-check-o", pid = "03" });
+
+                if (EAdditionalFeeMaster)
+                    treedata.Add(new TreeData { nodeId = "03-03", nodeText = Localizer["Additional Fee Master"], iconCss = "fa fa-clipboard", pid = "03" });
+
+                if (EDiscountMaster)
+                    treedata.Add(new TreeData { nodeId = "03-04", nodeText = Localizer["Discount Master"], iconCss = "Icon DiscountSchedule", pid = "03" });
+
+                if (EAdditionalDiscountMaster)
+                    treedata.Add(new TreeData { nodeId = "03-05", nodeText = Localizer["Additional Discount Master"], iconCss = "Icon Discount", pid = "03" });
+
+                if (EMiscMaster)
+                    treedata.Add(new TreeData { nodeId = "03-06", nodeText = Localizer["Miscellaneous Master"], iconCss = "fa fa-table", pid = "03" });
+            }
+
+            if (EFees)
+            {
+                treedata.Add(new TreeData { nodeId = "04", nodeText = Localizer["Fees"], iconCss = "fa fa-money", hasChild = true });
+
+                if (EStudentStatement)
+                    treedata.Add(new TreeData { nodeId = "04-01", nodeText = Localizer["Student Statement"], iconCss = "fa fa-file-text-o", pid = "04" });
+
+                
+                if (EStudentFeeRegister)
+                    treedata.Add(new TreeData { nodeId = "04-02", nodeText = Localizer["Student Fee Register"], iconCss = "fa fa-sticky-note", pid = "04" });
+
+                if (EFeeWiseRegister)
+                    treedata.Add(new TreeData { nodeId = "04-03", nodeText = Localizer["FeeWise Register"], iconCss = "fa fa-copy", pid = "04" });
+
+                // if (ETermFeeRegister)
+                //     treedata.Add(new TreeData { nodeId = "04-04", nodeText = "Term Fee Register", iconCss = "fa fa-file-code-o", pid = "04" });
+
+                if (EParentFeeRegister)
+                    treedata.Add(new TreeData { nodeId = "04-04", nodeText = Localizer["Parent Fee Register"], iconCss = "fa fa-chain", pid = "04" });
+
+                if (EFeeConflictRegister)
+                    treedata.Add(new TreeData { nodeId = "04-05", nodeText = Localizer["Fee Conflict Register"], iconCss = "fa fa-chain-broken", pid = "04" });
+
+                if (EStudentFeeRegisterDetailed)
+                    treedata.Add(new TreeData { nodeId = "04-06", nodeText = Localizer["Student Fee Register Detailed"], iconCss = "fa fa-sticky-note", pid = "04" });
+                if (EFeePost)
+                    treedata.Add(new TreeData { nodeId = "04-07", nodeText = Localizer["Fee Post"], iconCss = "fa fa-sticky-note", pid = "04" });
+                if (EPaymentLinkGeneration)
+                    treedata.Add(new TreeData { nodeId = "04-08", nodeText = Localizer["Payment Link Generation"], iconCss = "fa fa-credit-card", pid = "04" });
+            }
+         
+            // fa-desktop
+            // fa-puzzle-piece
+            // fa-chart-pie
+            // fa-eraser
+
+            if (UserID != null)
+            {
+                //uriHelper.NavigateTo(uriHelper.BaseUri + "Index");
+            }
+            else
+            {
+                await SessionStorage.ClearAsync();
+                if (LogoutUrl != null)
+                    uriHelper.NavigateTo(LogoutUrl);
+                else
+                    await JsRuntime.InvokeVoidAsync("window.history.back");
+                //uriHelper.NavigateTo(uriHelper.BaseUri + "Login");
+            }
+            SfTreeView = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    private async void LoadGlobalData()
+    {
+        if (globalStudentServ.GlobalStudentList == null || globalStudentServ.GlobalStudentList.Count == 0)
+        {
+            StudentList = (await StudentService.GetStudentsDefault(AccYear!, BranchID, Category, UserID))!.ToList();
+            if (StudentList != null)
+            {
+                globalStudentServ.GlobalStudentList!.AddRange(StudentList);
+                globalStudentServ.flagStudentRegRefreshed = true;
+            }
+        }
+        else
+        {
+            StudentList = globalStudentServ.GlobalStudentList;
+        }
+        // if (globalStudentServ.GlobalParentName == null || globalStudentServ.GlobalParentName.Count == 0)
+        // {
+        //     ParentName = (await StudentMasterService.GetParent(BranchID))!.ToList();
+        //     if (ParentName != null)
+        //     {
+        //         globalStudentServ.GlobalParentName!.AddRange(ParentName);
+        //     }
+        // }
+        // else
+        // {
+        //     ParentName = globalStudentServ.GlobalParentName;
+        // }
+
+
+        if (globalStudentServ.GlobalStudentListOthers == null || globalStudentServ.GlobalStudentListOthers.Count == 0)
+        {
+            StudentListOTHERS = (await _IInvAccounts.GetStudentsAccountsReceiptGlobal(BranchID, "NotStudying"))!.ToList();
+            if (StudentListOTHERS != null)
+            {
+                globalStudentServ.GlobalStudentListOthers!.AddRange(StudentListOTHERS);
+                globalStudentServ.flagStudentReceiptRefreshed = true;
+            }
+        }
+        else
+        {
+            StudentListOTHERS = globalStudentServ.GlobalStudentListOthers;
+        }
+
+
+    }
+    //public void OnSelect(NodeSelectEventArgs args)
+    [Microsoft.AspNetCore.Components.Inject]
+
+    protected Microsoft.JSInterop.IJSRuntime? theJavaScriptEngine { get; set; }
+
+    [Microsoft.AspNetCore.Components.Inject]
+
+    protected Microsoft.AspNetCore.Components.NavigationManager? theNavigationManager { get; set; }
+
+    protected override void OnAfterRender(bool bFirstRender)
+    {
+        try
+        {
+            if (bFirstRender)
+            {
+                theJavaScriptEngine!.InvokeAsync<System.Object>("setupUserIdleTimer", new object[] { Microsoft.JSInterop.DotNetObjectReference.Create(this), 5000000 });
+
+                this.StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            //ClearLocalStorage();
+            Console.WriteLine(ex);
+        }
+
+    }
+    public void OnSelect(NodeClickEventArgs args)
+    {
+        if (args.NodeData.Text == Localizer["Home"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "Home");
+        }
+        else if (args.NodeData.Text == Localizer["Students Register"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "StudnetRegister");
+        }
+        else if (args.NodeData.Text == Localizer["Miscellaneous Master"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "MiscellaneousMaster");
+        }
+        else if (args.NodeData.Text == Localizer["Fee Posting"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "FeePost");
+        }
+        else if (args.NodeData.Text == Localizer["Student Fee Register"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "StudentFeeRegister");
+        }
+        else if (args.NodeData.Text == Localizer["Fee Master"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "FeeMaster");
+        }
+        else if (args.NodeData.Text == Localizer["Fee Schedule"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "FeeScheduleRegister");
+        }
+        else if (args.NodeData.Text == Localizer["Additional Fee Master"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "AdditionalFeeMaster");
+        }
+        else if (args.NodeData.Text == Localizer["Discount Master"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "Discount");
+        }
+        else if (args.NodeData.Text == Localizer["Additional Discount Master"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "AdditionalPayment");
+        }
+        else if (args.NodeData.Text == Localizer["Miscellaneous Master"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "MiscellaneousMaster");
+        }
+        else if (args.NodeData.Text == Localizer["Student Statement"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "StudentStatement");
+        }
+        else if (args.NodeData.Text == Localizer["Student Fee Register"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "StudentFeesRegister");
+        }
+        else if (args.NodeData.Text == Localizer["FeeWise Register"])
+        {
+          uriHelper.NavigateTo(uriHelper.BaseUri + "FeeWiseRegister");
+         }
+        // else if (args.NodeData.Text == "TermFee Register")
+        // {
+        //    uriHelper.NavigateTo(uriHelper.BaseUri + "TermFeeRegister");
+        // }
+        else if (args.NodeData.Text == Localizer["Parent Fee Register"])
+       {
+           uriHelper.NavigateTo(uriHelper.BaseUri + "ParentFee");
+       }
+        else if (args.NodeData.Text == Localizer["Fee Conflict Register"])
+       {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "FeeConflict");
+       }
+        else if (args.NodeData.Text == Localizer["StudentFeeRegisterDetailed"])
+       {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "StudentFeeRegister");
+       }
+        else if (args.NodeData.Text == Localizer["Fee Post"])
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "FeePost");
+        }
+        else if (args.NodeData.Text == Localizer["Payment Link"])
+       {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "LinkGeneration");
+       }
+        
+        StateHasChanged();
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+
+    public void theIdleTimeoutFired()
+    {
+        System.Diagnostics.Debug.WriteLine("theIdleTimeoutFired()");
+
+        // Go to the root
+        ClearLocalStorage();
+    }
+    public void ClearLocalStorage()
+    {
+        SessionStorage.ClearAsync();//Must check localstorage userid in each razor page
+        uriHelper.NavigateTo(LogoutUrl!);
+        //Also use log out link
+    }
+
+    public async Task yesClick()
+    {
+        this.ConfirmDlgVisible = false;
+        await SessionStorage.SetItemAsync("AcademicYear", AcademicYear);
+        await SessionStorage.GetItemAsync<string>("AcademicYear");
+
+        string AccademicYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+
+        uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+        // InvokeAsync(StateHasChanged);
+    }
+
+    private void HideDialog(Object e)
+    {
+        this.ConfirmDlgVisible = false;
+    }
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param);
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+    private bool Lang;
+    private string IconClass => Lang ? "Icon En" : "Icon Ar";
+    private async Task LanguageChange()
+    {
+        string Language = info!.Language!;
+        if (Language == "en-US")
+        {
+            var js = (IJSInProcessRuntime)JsRuntime;
+            js.InvokeVoid("cultureInfo.set", "ar-AE");
+
+            info.Language = "ar-AE";
+            await SetLoginInfo();
+            Lang = true;
+            uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+        }
+        else
+        {
+            var js = (IJSInProcessRuntime)JsRuntime;
+            js.InvokeVoid("cultureInfo.set", "en-US");
+
+            info.Language = "en-US";
+            await SetLoginInfo();
+            Lang = false;
+            uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SetLoginInfo()
+    {
+        try
+        {
+            string jsonString = JsonConvert.SerializeObject(info);
+            string param = await http.GetStringAsync("API/Encryption/Encrypt?Text=" + jsonString);
+            if (!string.IsNullOrEmpty(param))
+                await SessionStorage.SetItemAsync("token", param);
+        }
+        catch (Exception ex)
+        {
+            await SessionStorage.ClearAsync();
+            throw ex;
+        }
+    }
+}
+

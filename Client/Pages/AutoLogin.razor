@@ -1,0 +1,112 @@
+﻿@page "/AutoLogin"
+
+@layout LoginLayout
+@using Syncfusion.Blazor.Spinner
+@using Microsoft.AspNetCore.WebUtilities
+@using OrisonCollegePortal.Shared.Entities
+@using System.Web
+@using Newtonsoft.Json
+@using OrisonCollegePortal.Client.Pages.Loading
+@using OrisonCollegePortal.Shared.Entities.General
+
+@inject IJSRuntime IJS
+@inject HttpClient http
+@inject OrisonCollegePortal.Client.Services.GeneralServices _generalService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Contracts.IUserLoginManager _IUserLoginManager
+@inject NavigationManager NavigationManager
+
+<LoadingScreen></LoadingScreen>
+
+@code {
+    string? ID, BranchID;
+    string? HomeURL,Key;
+    IEnumerable<DtoLoginModel>? info = new List<DtoLoginModel>();
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryStrings = QueryHelpers.ParseQuery(uri.Query);
+            // var test = "";
+            // var encryptTest = await http.GetStringAsync("API/Encryption/Encrypt?Text=" + HttpUtility.UrlEncode(test));
+            if (queryStrings.TryGetValue("Param", out var _Param))
+            {                
+                _Param = _Param.ToString().Replace(" ", "+");
+                string param = await http.GetStringAsync("API/Encryption/Decrypt?Text=" + _Param.ToString());
+                string[] paramArr = param.Split(new Char[] { '&' });
+                if (paramArr.Length > 0)
+                {
+                    Dictionary<String, String> paramKeyVal = paramArr.Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
+                    if (paramKeyVal.TryGetValue("ID", out var _ID) && paramKeyVal.TryGetValue("BranchID", out var _BranchID) && paramKeyVal.TryGetValue("Key", out var _Key))
+                    {
+                    ID = _ID;
+                    BranchID = _BranchID;
+                    Key = _Key;
+                    
+                    if (ID != null && BranchID != null && !string.IsNullOrEmpty(Key))
+                        {
+                            string _key = await http.GetStringAsync("API/Encryption/Encrypt?Text=" + HttpUtility.UrlEncode(Key));
+
+                            if (!string.IsNullOrEmpty(_key))
+                            {
+                                await SessionStorage.SetItemAsync("token_key", _key);
+                                info = (await _IUserLoginManager.GetUserData(int.Parse(ID), int.Parse(BranchID)))?.ToList();
+                                if (info != null && info.Count() > 0)
+                                {
+                                    info.First().BranchID = Convert.ToInt32(BranchID);
+                                    info.First().Language = await IJS.InvokeAsync<string>("cultureInfo.get");
+                                    await SetLoginInfo();
+                                    NavigationManager.NavigateTo("StudnetRegister");
+                                }
+                                else
+                                {
+                                    HomeURL = await _generalService.GetURL("HomeURL");
+                                    NavigationManager.NavigateTo(HomeURL ?? "");
+                                }
+                            }
+                            else
+                            {
+                                await IJS.InvokeVoidAsync("window.history.back");
+                            }
+                        }
+                        else
+                        {
+                            await IJS.InvokeVoidAsync("window.history.back");
+                        }
+                    }
+                }
+            }
+            else
+            {
+               // await IJS.InvokeVoidAsync("window.history.back");
+            }
+            //else
+            //{
+            //    HomeURL = await _generalService.GetURL("HomeURL");
+            //    NavigationManager.NavigateTo(HomeURL);
+            //}
+        }
+        catch (Exception ex)
+        {
+            // var encodedExceptionMessage = HttpUtility.UrlEncode(ex.Message);
+            // NavigationManager.NavigateTo("Error?message=" + encodedExceptionMessage);
+            Console.WriteLine(ex);
+        }
+    }
+    private async Task SetLoginInfo()
+    {
+        try
+        {
+            string jsonString = JsonConvert.SerializeObject(info?.FirstOrDefault());
+            string param = await http.GetStringAsync("API/Encryption/Encrypt?Text=" + jsonString);
+            if (!string.IsNullOrEmpty(param))
+                await SessionStorage.SetItemAsync("token", param);
+        }
+        catch (Exception ex)
+        {
+            await SessionStorage.ClearAsync();
+            throw ex;
+        }
+    }
+}

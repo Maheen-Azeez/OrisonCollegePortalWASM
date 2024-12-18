@@ -1,0 +1,301 @@
+﻿@page "/StudnetRegister"
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Calendars;
+@using OrisonCollegePortal.Shared.Entities;
+@using BlazorStrap
+@using Contracts
+@using System.Net.Http;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Client.Services
+@using Newtonsoft.Json.Linq
+@using System.Data
+@using System.Net.Http.Json
+@using Newtonsoft.Json
+@using System.Web
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+@inject ToastService ToastService
+@inject NavigationManager uriHelper
+@inject NavigationManager NavigationManager
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager _stud
+@using OrisonCollegePortal.Client.Resources
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SfResources> Localizer
+@inject HttpClient http
+
+@* <head>
+    <link href="css/CustomBootstrap.css" rel="stylesheet" />
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <link href="css/OrisonCustomStyles.css" rel="stylesheet" />
+</head> *@
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <link href="css/Loader.css" rel="stylesheet" />
+</head>
+
+<div class="box-card-shadow">
+    <div class="row">
+        <div class="col-md-12">
+            <SfButton IconCss="Icon add"  title="New" OnClick="AddStudent" CssClass="e-btn">@Localizer["New"]</SfButton>
+
+            <SfButton IconCss="Icon excel" CssClass="e-btn4" title=@Localizer["Export to Excel"] Content="" @onclick="@(async (e) => { await ExportExcel(); })" />
+            <SfButton IconCss="Icon pdf" CssClass="e-btn4" title=@Localizer["Export to Pdf"] @onclick="async () => await ExportPdf()"></SfButton>
+            <SfButton IconCss="Icon filter" @onclick="@Clear_Click" CssClass="e-btn4" Content=" " HtmlAttributes="@ClearFilter"></SfButton>
+
+            <SfTextBox Width="250px" @bind-Value="@val" Input="OnInput" ShowClearButton="true" Placeholder=@Localizer["Global Search"] ValueChange="OnSearch" Created="@onCreateGlobalSearch" @ref="GlobalSearch" />
+           @*  <SfComboBox TValue="string" TItem="Col_AccademicYear" PopupHeight="230px" Placeholder="" @bind-Value="@CmbAccYear" DataSource="@CmbYear" Width="150px">
+                <ComboBoxFieldSettings Text="AcademicYear" Value="AcademicYear"></ComboBoxFieldSettings>
+            </SfComboBox> *@
+            <SfButton Content=@Localizer["Go"] OnClick="@Go_Click" IsPrimary="false" title=@Localizer["Go"] CssClass="e-btn4"></SfButton>
+
+            <SfButton CssClass="e-btn4" style="width:100px" IconCss="Icon search" title="Show" @onclick="@Show" type="submit">@Localizer["Show All"]</SfButton>
+            <label class="page-heading">@Localizer["STUDENT REGISTER"]</label>
+
+        </div>
+       
+    </div>
+</div>
+<div class="box-card-shadow">
+    <div>
+        @if (GridStud == null)
+        {
+            <p><em>@Localizer["Loading..."]</em></p>
+        }
+        else
+        {
+            <SfGrid DataSource="@GridStud"
+                    ID="GridStudent"
+                    GridLines="GridLine.Both"
+                    @ref="SfGrid"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    AllowExcelExport="true"
+                    AllowPdfExport="true"
+                    Height="520"
+                    Width="100%"
+                    EnableStickyHeader="true"
+                    ShowColumnChooser="true"
+                    AllowResizing="true"
+                    AllowSorting="true"
+                    EnableAltRow="true"
+                    RowHeight="25">
+                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                <GridPageSettings PageSize="50"></GridPageSettings>
+                <GridColumns>
+                    <GridColumn Width="40" Index="0">
+                        <Template>
+                            @{
+                                string JobCode = (context as Student).AccountCode;
+                                int ID = (context as Student).AccountId;
+                                <a @onclick="@(() => { Edit_Click(JobCode, ID); })">
+                                    <img src="Images/Pencil.png" title="Edit" style="height: 20px; width: 20px; cursor: pointer;" />
+                                </a>
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Type="ColumnType.Number" HeaderText=@Localizer["SlNo"] HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Center" Width="60" Index="1">
+                        <Template>
+                            @{
+                                var val = GetRowCounter(context as Student);
+                                @val.Result
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field=@nameof(Student.AccountId) Visible="false"></GridColumn>
+                    <GridColumn Field=@nameof(Student.AccountCode) Index="2" HeaderText=@Localizer["Code"] Width="100"></GridColumn>
+                    <GridColumn Field=@nameof(Student.AccountName) Index="4" HeaderText=@Localizer["AccountName"] Width="180"></GridColumn>
+                    <GridColumn Field=@nameof(Student.UnivRegNum) Index="4" HeaderText=@Localizer["UnivRegNum"] Width="150"></GridColumn>
+                    <GridColumn Field=@nameof(Student.Gender) Index="5" HeaderText=@Localizer["Gender"] HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Center" Width="90"></GridColumn>
+                    <GridColumn Field=@nameof(Student.Status) Index="8" HeaderText=@Localizer["Status"] HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Center" Width="90">
+                        <Template>
+                            @{
+                                var _status = (context as Student).Status;
+                                @if (_status == "Active")
+                                {
+                                    <span style="color: #00a902; background-color: #ccffcc; padding-left: 12px; padding-right: 12px; border-radius: 20px ">@_status</span>
+                                }
+                                else
+                                {
+                                    <span style="color: #c40000; background-color: #ffd7cc; padding-left: 12px; padding-right: 12px; border-radius: 20px ">@_status</span>
+                                }
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field=@nameof(Student.Nationality) Index="11" HeaderText=@Localizer["Nationality"] Width="110"></GridColumn>
+                    <GridColumn Field=@nameof(Student.ProgrammeCode) Index="12" HeaderText=@Localizer["Program/Course"] Width="150"></GridColumn>
+                    <GridColumn Field=@nameof(Student.Dob) Index="7" HeaderText=@Localizer["DOB"] Format="dd/MM/yyyy" Width="100"></GridColumn>
+                    <GridColumn Field=@nameof(Student.Email) Index="15" HeaderText=@Localizer["Email"] Width="200"></GridColumn>
+                </GridColumns>
+            </SfGrid>
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+    private bool VisibleProperty { get; set; } = false;
+    DtoLoginModel info = new DtoLoginModel();
+
+    public List<Student> GridStud = new List<Student>();
+    public SfGrid<Student>? SfGrid { get; set; }
+    public int?  user;
+    public int Branchid;
+    string? Username, Category, GridHeight = "500px";
+    public string? val { get; set; }
+    SfTextBox? GlobalSearch;
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+   // public List<Col_AccademicYear> CmbYear = new List<Col_AccademicYear>();
+    public string CmbAccYear = "",AcademicYear="";
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+     {
+        { "title", "Clear Filter"}
+    };
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // user = await sessionStorage.GetItemAsync<int>("UserID");
+        // Branchid = await sessionStorage.GetItemAsync<int>("BranchID");
+        // Username = await sessionStorage.GetItemAsync<string>("Username");
+        // Con = await sessionStorage.GetItemAsync<string>("Con");
+        // CmbAccYear = await sessionStorage.GetItemAsync<string>("AcademicYear");
+     
+        await Layout.VersionChecker();
+        
+        this.VisibleProperty = true;
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = info.UserID;
+            Branchid = info.BranchID;
+            Category = info.Category;
+        }
+        AcademicYear = await sessionStorage.GetItemAsync<string>("AcademicYear");
+        // MobileWidth = await sessionStorage.GetItemAsync<decimal>("MobileWidth");
+        var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 180).ToString() + "px";
+         CmbYear = (await _stud.GetAcademicYear(Branchid))!.ToList();
+        if (AcademicYear != null)
+        {
+            CmbAccYear = AcademicYear;
+        }
+        else
+        {
+            objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+            if (objAccYear != null)
+                CmbAccYear = objAccYear.AcademicYear!.ToString();
+        }
+
+        GridStud = await _stud.GetAll(Branchid, CmbAccYear);
+        GridStud = GridStud.Where(x => x.Status == "Active" ).ToList();
+        // }
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("api/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+
+    public async Task Clear_Click()
+    {
+        if (SfGrid != null)
+        {
+            await SfGrid.ClearFilteringAsync();
+            await SfGrid.SearchAsync("");
+        }
+       
+        GridStud = await _stud.GetAll(Branchid, CmbAccYear);
+        GridStud = GridStud.Where(x => x.Status == "Active").ToList();
+    }
+    public async Task Go_Click()
+    {
+        GridStud = await _stud.GetAll(Branchid, CmbAccYear);
+        GridStud = GridStud.Where(x => x.Status == "Active").ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task Show()
+    {
+        GridStud = await _stud.GetAll(Branchid, CmbAccYear);
+
+        await InvokeAsync(StateHasChanged);
+    }
+    public void OnInput(InputEventArgs Args)
+    {
+        if (SfGrid!=null)
+        SfGrid.SearchAsync(Args.Value);
+    }
+    public void onCreateGlobalSearch()
+    {
+        // this.GlobalSearch.AddIcon("append", "fa fa-search");
+    }
+    public void OnSearch(Syncfusion.Blazor.Inputs.ChangedEventArgs args)
+    {
+        if (args.Value != null)
+        {
+            if (SfGrid != null)
+            SfGrid.SearchAsync(args.Value);
+            this.StateHasChanged();
+        }
+    }
+    public void AddStudent()
+    {
+        NavigationManager.NavigateTo(NavigationManager.BaseUri + "StudentMaster");
+    }
+    public void Edit_Click(string _JobCode, int ID)
+    {
+        String AccID = ID.ToString();
+        NavigationManager.NavigateTo(NavigationManager.BaseUri + "StudentMaster/" + AccID);
+    }
+    public async Task<int> GetRowCounter(Student val)
+    {
+        int RowCounter = GridStud.IndexOf(val);
+        // lgsItem.Id = RowCounter + 1;
+        return RowCounter + 1;
+
+    }
+    public async Task ExportPdf()
+    {
+        if (SfGrid != null)
+        await this.SfGrid.ExportToPdfAsync();
+
+    }
+    public async Task ExportExcel()
+    {
+        if (SfGrid != null) if (SfGrid != null)
+        await this.SfGrid.ExportToExcelAsync();
+
+    }
+}

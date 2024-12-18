@@ -1,0 +1,231 @@
+﻿@page "/FeeScheduleRegister"
+
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Grids
+@using Microsoft.Extensions.Localization
+@using System.Web;
+
+@inject NavigationManager uriHelper
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager StudentService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IFeeSchedule FeeScheduleService
+@inject IJSRuntime JsRuntime
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+@inject NavigationManager _NavManager
+@inject HttpClient Http
+@inject ToastService ToastService
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <style type="text/css">
+        .btn-width {
+            width: 34px;
+            border: transparent;
+            background-color: transparent;
+        }
+    </style>
+</head>
+
+@if (AllowOpen == true)
+{
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-9">
+                <div style="display:flex">
+                    <SfButton @onclick="@New_Click" Content=@Localizer["New"] IconCss="Icon add" CssClass="e-btn" /> &nbsp;
+                    <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true">
+                        @Success
+                    </BlazorStrap.BSAlert>
+                    <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDanger" AutoHide="true">
+                        @Failed
+                    </BlazorStrap.BSAlert>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="header-div-style">
+                    <label class="header-label">@Localizer["FEE SCHEDULE REGISTER"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="box-card-shadow">
+        <SfGrid DataSource="@DSFeeSchedule" ID="GvFeeSchedule" @ref="GvFeeSchedule"
+                GridLines="GridLine.Both"
+                AllowFiltering="true"
+                AllowPaging="true"
+                AllowExcelExport="true"
+                AllowPdfExport="true"
+                Width="100%"
+                Height="@GridHeight"
+                ShowColumnChooser="true"
+                AllowResizing="true"
+                AllowSorting="true"
+                EnableAltRow="true"
+                RowHeight="25">
+            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+            <GridPageSettings PageSize="50"></GridPageSettings>
+            <GridColumns>
+                <GridColumn Field=@nameof(SchoolFeeSchedule.Id) IsPrimaryKey="true" HeaderText=@Localizer["ID"] Width="120" Visible="false"></GridColumn>
+                <GridColumn Field=@nameof(SchoolFeeSchedule.FeeSchedule) HeaderText=@Localizer["FeeSchedule"] Width="120"></GridColumn>
+                <GridColumn Field=@nameof(SchoolFeeSchedule.Type) HeaderText=@Localizer["Type"] Width="100"></GridColumn>
+                <GridColumn Field=@nameof(SchoolFeeSchedule.Description) HeaderText=@Localizer["Description"] Width="300"></GridColumn>
+                <GridColumn Field=@nameof(SchoolFeeSchedule.AcademicYear) HeaderText=@Localizer["Academic Year"] Width="100"></GridColumn>
+                <GridColumn Width="40px" HeaderText=@Localizer["Show"]>
+                    <Template Context="FeeContext">
+                        @{
+                            var FeeID = (FeeContext as SchoolFeeSchedule)!.Id;
+                            <a @onclick="@(() => { return OnEdit(FeeID); })"><img src="Images/View.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                        }
+                    </Template>
+                </GridColumn>
+            </GridColumns>
+        </SfGrid>
+    </div>
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    Permission Denied
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+    int? BranchID, user;
+    string GridHeight = "500px";
+    public string? Category, Success, Failed, Con, AcademicYear;
+    bool AllowOpen = true, Open, OpenError, visible = false;
+
+    public bool IsOpen = false, IsOpenDanger = false;
+
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    public string CmbAccYear = "";
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+    UserRights objUserRight = new UserRights();
+    DtoLoginModel info = new DtoLoginModel();
+
+    public IList<SchoolFeeSchedule> DSFeeSchedule = new List<SchoolFeeSchedule>();
+    public SfGrid<SchoolFeeSchedule>? GvFeeSchedule { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+        // user = await SessionStorage.GetItemAsync<int>("UserID");
+        // Category = await SessionStorage.GetItemAsync<string>("Category");
+        await Layout.VersionChecker();
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = info.UserID;
+            BranchID = info.BranchID;
+            Category = info.Category;
+        }
+        AcademicYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+        var dimension = await JsRuntime.InvokeAsync<DtoWindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 180).ToString() + "px";
+        if (Category == "Administrator")
+        {
+            AllowOpen = true;
+            Open = false;
+
+            await LoadData();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "FeeSchedule", "Students", BranchID))!;
+
+                if (objUserRight.AccessDenied == true)
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+                else if (objUserRight.AllowOpen == true)
+                {
+                    AllowOpen = true;
+                    Open = false;
+
+                    await LoadData();
+                }
+                else
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                AllowOpen = false;
+                Open = true;
+            }
+        }
+    }
+
+    public async Task LoadData()
+    {
+        CmbYear = (await StudentService.GetAcademicYear(BranchID))!.ToList();
+        if (AcademicYear != null)
+        {
+            CmbAccYear = AcademicYear;
+        }
+        else
+        {
+            objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+            CmbAccYear = objAccYear.AcademicYear!.ToString();
+        }
+        DSFeeSchedule = (await FeeScheduleService.GetFeeScheduleList(BranchID, CmbAccYear))!.ToList();
+    }
+
+    public async Task OnEdit(int ID)
+    {
+        _NavManager.NavigateTo(_NavManager.BaseUri + "FeeSchedule/" + ID);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task New_Click()
+    {
+        _NavManager.NavigateTo(_NavManager.BaseUri + "FeeSchedule/" + "0");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+}

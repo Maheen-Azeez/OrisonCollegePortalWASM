@@ -1,0 +1,51 @@
+﻿.reonnectCard {
+    position: relative;
+    z-index: 1;
+    background: #ffffff;
+    max-width: 550px;
+    margin: 0 auto 80px;
+    padding: 45px;
+    text-align: center;
+    box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.3), 0 5px 5px 0 rgba(0, 0, 0, 0.19);
+    transition-duration: 0.3s;
+    border-radius: 6px;
+}
+
+.reonnectCardParent {
+    max-width: 400px;
+    padding: 8% 0 0;
+    margin: auto;
+}
+
+.reonnectCard:hover {
+    box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.7), 0 5px 5px 0 rgba(0, 0, 0, 0.27);
+}
+
+.ParentCard {
+    position: relative;
+    z-index: 1;
+    /*background: #ffffff;*/
+    max-width: 100%;
+    /*margin: 0 auto 80px;*/
+    /*padding: 45px;*/
+    text-align: center;
+    /*box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.3), 0 5px 5px 0 rgba(0, 0, 0, 0.19);
+    transition-duration: 0.3s;
+    border-radius: 6px;*/
+}
+
+.ParentCardParent {
+    max-width: 1020px;
+    padding: 8% 0 0;
+    margin: auto;
+}
+
+.ParentCard:hover {
+    /*box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.7), 0 5px 5px 0 rgba(0, 0, 0, 0.27);*/
+}
+
+.lblbold {
+    display: inline-block;
+    color: #4758a8;
+    font-weight: bold;
+}

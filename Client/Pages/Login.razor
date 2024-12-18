@@ -1,0 +1,248 @@
+﻿@page "/"
+@page "/Login"
+@layout LoginLayout
+@using System.Data
+@using System.Net.Http
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Spinner
+@using System.Web;
+
+@inject HttpClient Http
+@inject IJSRuntime JsRuntime
+@inject IConfiguration IConfig
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+@inject OrisonCollegePortal.Client.Services.AccountService accService
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Contracts.IUserLoginManager _IUserLoginManager
+
+@* @inject OrisonSchoolWeb.Client.Logics.Contract.General.IAccounts _IAccounts *@
+
+<style>
+    .login {
+        position: relative;
+        z-index: 1;
+        background: #ffffff;
+        max-width: 550px;
+        margin: 0 auto 80px;
+        padding: 45px;
+        text-align: center;
+        box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.3), 0 5px 5px 0 rgba(0, 0, 0, 0.19);
+        transition-duration: 0.3s;
+        border-radius: 6px;
+    }
+
+    .loginParent {
+        max-width: 400px;
+        padding: 8% 0 0;
+        margin: auto;
+    }
+
+    .login:hover {
+        box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.7), 0 5px 5px 0 rgba(0, 0, 0, 0.27);
+    }
+
+    .button {
+        width: 100%;
+        background-color: #04396d;
+        border: none;
+        color: white;
+        padding: 8px 30px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 15px;
+        border-radius: 9px;
+        cursor: pointer;
+        -webkit-transition-duration: 0.4s;
+        transition-duration: 0.4s;
+    }
+
+    .button2:hover {
+        box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24),0 17px 50px 0 rgba(0,0,0,0.19);
+    }
+
+    .textBox {
+        width: 100%;
+        padding: 7px 20px;
+        display: inline-block;
+        border: 1.1px solid #ccc;
+        border-radius: 10px;
+        box-sizing: border-box;
+        background-color: #e7eef4;
+    }
+
+        .textBox:hover {
+            background-color: #f5f4f4;
+        }
+
+    #container {
+        margin-top: 0px;
+    }
+
+        #container .row {
+            display: flex;
+        }
+
+    .spin-row {
+        position: initial;
+        height: 40px;
+        width: 120px;
+    }
+
+    #container .row {
+        margin-right: 0px;
+        margin-left: 0px;
+    }
+
+    .fabric-dark .e-spinner-pane .e-spinner-inner .e-spin-fabric .e-path-circle {
+        stroke: rgba(0, 116, 204, 0.4);
+    }
+</style>
+<div class="container-fluid">
+    <div class="loginParent">
+        <div class="login">
+            <div class="form-group" style="text-align: Center">
+                <img src="Images/Orison_Logo_New.png" width="140" height="140" style="width: 140px; height: 140px;" />
+            </div>
+            <div class="form-group" style="text-align: Center;font-weight: bold;">
+                <label style="color: #04396d; font-size: medium;">Orison College Portal</label>
+            </div>
+            <div class="form-group" style="padding-top:1%;">
+                <input type="text" placeholder="UserName" @bind-value="@objStudent.Username" class="textBox" />
+            </div>
+            <div class="form-group" style="padding-top:1%;">
+                <input type="password" placeholder="Password" @bind-value="@objStudent.Password" class="textBox" />
+            </div>
+            <div class="form-group" style="padding-top:1%;">
+                @if (Isload == false)
+                {
+                    <SfButton CssClass="button button2 btn" @onclick="@LoginSalesman">Login</SfButton>
+                }
+                else
+                {
+                        <div class="row">
+                            <div class="col-sm">
+                                <div class="spin-row">
+                                    <SfSpinner Size="40" Label="" Type="SpinnerType.Fabric" Visible="Isload"></SfSpinner>
+                                </div>
+                            </div>
+                        </div>
+@*                     <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 40px; height: 40px;" />
+ *@                }
+            </div>
+        </div>
+    </div>
+</div>
+<footer class="container-fluid text-center" style="color:black;padding-left:0;margin:0;padding-right:0px;">
+
+    <span style="color:black;text-align:center">
+        <p style="color:black;text-align: center">Powered By <img src="Images/BackgroundOrisonLogo.png" id="img2" alt="logo" style="width:30px;height:28px" /><a href="https://www.hirasolutions.com" title=""> Orison</a></p>
+    </span>
+</footer>
+@code {
+
+    string? user, pwd, SchoolKey;
+    int? ID, BranchID;
+    public bool Isload = false;
+    IEnumerable<DtoLoginModel> StudentLogin = new List<DtoLoginModel>();
+    // DtoLoginModel? info = new DtoLoginModel();
+    IEnumerable<DtoLoginModel>? info = new List<DtoLoginModel>();
+
+    DtoLoginModel objStudent = new DtoLoginModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await localStorage.GetItemAsync<string>("Username");
+        pwd = await localStorage.GetItemAsync<string>("Password");
+        SchoolKey = IConfig.GetValue<string>("SchoolKey:Key");
+        string Encryptkey = await Http.GetStringAsync("api/Encryption/Encrypt?Text=" + HttpUtility.UrlEncode(SchoolKey));
+        await SessionStorage.SetItemAsync("token_key", Encryptkey);
+        ////await localStorage.ClearAsync();
+        //await localStorage.RemoveItemAsync("LocalSessionUserId");
+        //await localStorage.RemoveItemAsync("ID");
+        //await localStorage.RemoveItemAsync("Password");
+        objStudent.Username = user;
+        if (user != null && pwd != null)
+        {
+            NavigationManager.NavigateTo("StudnetRegister");
+        }
+    }
+
+    protected async Task LoginSalesman()
+    {
+        Isload = true;
+        objStudent.Password = accService.PasswordEncode(objStudent.Password!);
+        StudentLogin = (await _IUserLoginManager.LoginUser(objStudent.Username!, objStudent.Password))!;
+
+        if (StudentLogin.Count() == 0)
+        {
+            //toastservice.ShowToast("Username/Password is incorrect");
+            ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Username/Password is incorrect",
+                    // Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Isload = false;
+        }
+        else
+        {
+            ID = (StudentLogin.First().ID);
+            BranchID = (StudentLogin.First().BranchID);
+            info = (await _IUserLoginManager.GetUserData(ID, BranchID))?.ToList();
+            if (info != null && info.Count() > 0)
+            {
+                info.First().BranchID = Convert.ToInt32(BranchID);
+                info.First().Language = await JsRuntime.InvokeAsync<string>("cultureInfo.get");
+                await localStorage.SetItemAsync("ID", StudentLogin.First().ID);
+                await localStorage.SetItemAsync("Username", StudentLogin.First().Username);
+                await localStorage.SetItemAsync("Password", StudentLogin.First().Password);
+                await localStorage.SetItemAsync("LocalSessionUserId", StudentLogin.First().ID);
+                await localStorage.SetItemAsync("BranchID", StudentLogin.First().BranchID);
+                await SetLoginInfo();
+                Isload = false;
+                NavigationManager.NavigateTo("StudnetRegister");
+            }
+            // info!.ID = (StudentLogin.First().ID);
+            // info.BranchID = Convert.ToInt32(31);
+            // StudentLogin.First().ID = Convert.ToInt32(31);
+            // info.Language = await JsRuntime.InvokeAsync<string>("cultureInfo.get");
+            // await localStorage.SetItemAsync("ID", StudentLogin.First().ID);
+            // await localStorage.SetItemAsync("Username", StudentLogin.First().Username);
+            // await localStorage.SetItemAsync("Password", StudentLogin.First().Password);
+            // await localStorage.SetItemAsync("LocalSessionUserId", StudentLogin.First().ID);
+            // await localStorage.SetItemAsync("BranchID", 31);
+            // await SetLoginInfo();
+            // Isload = false;
+            // NavigationManager.NavigateTo("StudnetRegister");
+        }
+    }
+
+    private async Task SetLoginInfo()
+    {
+        try
+        {
+           // string jsonString = JsonConvert.SerializeObject(info);
+            string jsonString = JsonConvert.SerializeObject(info?.FirstOrDefault());
+            string param = await Http.GetStringAsync("API/Encryption/Encrypt?Text=" + jsonString);
+            if (!string.IsNullOrEmpty(param))
+                await SessionStorage.SetItemAsync("token", param);
+        }
+        catch (Exception ex)
+        {
+            await SessionStorage.ClearAsync();
+            throw ex;
+        }
+    }
+
+}

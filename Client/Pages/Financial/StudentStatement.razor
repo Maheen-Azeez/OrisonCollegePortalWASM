@@ -1,0 +1,3337 @@
+﻿@page "/StudentStatement"
+@page "/StudentStatement/{Id}"
+@using System
+@using System.IO
+@using System.Web
+@using System.Net
+@using System.Net.Mail
+@using System.Linq
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities.BoldReport;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities.Inventory;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Data
+@using Blazored.SessionStorage
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Calendars
+@using System.Collections.ObjectModel
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.WebUtilities;
+@using System.Dynamic;
+@*Inject Reference*@
+@inject IJSRuntime IJS
+@inject IJSRuntime Runtime
+@inject ISessionStorageService sessionStorage
+@inject NavigationManager NavManager
+@inject HttpClient http
+@inject NavigationManager uriHelper
+@inject ToastService ToastService
+@inject ISessionStorageService sessionStorage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IInvAccounts _IInvAccounts
+@inject OrisonCollegePortal.Client.Services.GeneralServices  generalServ
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager StudentCompanyService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IVoucherAllocationManagers _IVoucherAllocationManagers
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IPostingManager _IPostingManager
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentFeeManager StudentService
+@inject OrisonCollegePortal.Client.Contracts.Finance.ISchoolTaxInvoiceManager _ISchoolTaxInvoiceManager
+@inject OrisonCollegePortal.Client.Contracts.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster _IStudentMaster
+@using Microsoft.Extensions.Localization
+
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <style>
+
+
+        .e-customsize.e-checkbox-wrapper .e-label {
+            line-height: 17px;
+            font-size: 15px;
+        }
+
+        .e-checkbox-wrapper .e-frame + .e-label, .e-css.e-checkbox-wrapper .e-frame + .e-label {
+            margin-left: 1px;
+        }
+    </style>
+
+
+</head>
+
+@if (AllowOpen == true)
+{
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-4">
+                <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" title="Excel" Content="Excel" />
+                <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" title="PDF" Content="Pdf" />
+                @if (btnPdf2 != null)
+                {
+                    if (btnPdf2.Visible == true)
+                    {
+                        <SfButton @onclick="ExportPdf2" IconCss="Icon pdf" CssClass="e-btn" title="PDF2" Content="Pdf2" />
+                    }
+                }
+            </div>
+            <div class="col-md-5">
+                @if (isParentChecked == false)
+                {
+                    @StudentName
+                }
+                else
+                {
+                    @ParentName
+                }
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true">
+                    @Success
+                </BlazorStrap.BSAlert>
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDangers" AutoHide="true">
+                    @Faileds <a><i class="fa fa-exclamation-circle" aria-hidden="true"></i></a>
+                </BlazorStrap.BSAlert>
+            </div>
+            <div class="col-md-3">
+                <div class="header-div-style">
+                    <label class="header-label">@Localizer["STUDENTS STATEMENT"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="box-card-shadow">
+            <div class="pl-2 box-card-div">
+            </div>
+            <div class="pt-1">
+                <div class="form-row">
+
+                    <div class="col-md-4">
+                        @if (isParentChecked == false)
+                        {
+                            <label>@Localizer["Student Name"]:</label>
+                            <SfTextBox @bind-Value="@CustList" CssClass="textbox" @ref="@AccountRef" Placeholder=@Localizer["Please Select Student"] ShowClearButton="true" Readonly="true" Focus="@FocusHandler" Enabled="true"></SfTextBox>
+                        }
+                        @if (isParentChecked == true)
+                        {
+                            <label>@Localizer["Parent Name"]:</label>
+                            <SfTextBox @bind-Value="@SelectParent" CssClass="textbox" @ref="@AccountParntRef" Placeholder=@Localizer["Please Select Parent"] ShowClearButton="true" Readonly="true" Focus="@ParentFocusHandler" Enabled="true"></SfTextBox>
+
+                        }
+                    </div>
+                    <div class="col-md-2">
+                        <label>From</label>
+                        <SfDatePicker TValue="DateTime?" Width="100%" Format="dd/MM/yyyy" @bind-Value="@StartDate" Placeholder=@Localizer["Start Date"]></SfDatePicker>
+
+                    </div>
+                    <div class="col-md-2">
+                        <label>To</label>
+                        <SfDatePicker TValue="DateTime?" Width="100%" Format="dd/MM/yyyy" @bind-Value="@EndDate" Placeholder=@Localizer["End Date"]></SfDatePicker>
+                    </div>
+                    <div class="col-md-4" style="padding-top:13px">
+                        <label></label>
+                        <SfButton IconCss="" CssClass="e-btn e-btn" OnClick="@RefreshGrids" Content="Go"></SfButton>
+                        <SfCheckBox Label=@Localizer["FeesWise"] @bind-Checked="isFeeChecked" CssClass="e-customsize"></SfCheckBox>
+                        <SfCheckBox Label=@Localizer["Parent"] @bind-Checked="isParentChecked" CssClass="e-customsize"></SfCheckBox>
+                        <SfCheckBox Label=@Localizer["Alloted"] @bind-Checked="isAlloted" CssClass="e-customsize"></SfCheckBox>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col-md-4">
+                        @if (isParentChecked == false)
+                        {
+                            <label>@Localizer["Programme&Year"]:</label>
+                            <SfTextBox @bind-Value="@classDiv" CssClass="textbox" Placeholder=@Localizer["ProgrammeCode"] Enabled="false"></SfTextBox>
+
+                        }
+                    </div>
+                    <div class="col-md-1">
+                        <label><p> </p></label>
+                        <div style="padding-top:18%">
+                            @if (Loading == 1 || HomeLoad == 1)
+                            {
+                                <p> <img src="gif/loading-waiting.gif" style=" width: 20px; height: 20px;" /></p>
+                            }
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        @if (isFeeChecked == false)
+        {
+            @* Student Statement*@
+            @if (isParentChecked == false)
+            {
+
+                @if (StudStatement.Count() <= 0 || StudStatement == null)
+                {
+                    <p><em>No Data...</em></p>
+                }
+                else
+                {
+                    <div class="row" style="padding-top:.5rem;padding-bottom: 7px;width: 102%;padding-left: 5px;">
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Current Fee"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.CurrentFee" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Total Fee"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.TotalFee" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Total Discount"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.Discount" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Paid"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.Paid" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Total Balance"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.TotalBalance" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Current Balance"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.CurrentBalance" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+
+
+                    </div>
+
+                    <SfDialog Width="700px" IsModal="true" @bind-Visible="PopupDeVisibletrue" ShowCloseIcon="true">
+                        <DialogTemplates>
+                            <Header>
+                            </Header>
+                            <Content>
+                                <div>
+                                    <p style="color:orangered">
+                                        Not Posible
+                                    </p>
+                                </div>
+                            </Content>
+                        </DialogTemplates>
+                        <DialogButtons>
+                            <DialogButton Content="OK" IsPrimary="true" @onclick="@popClose_Click" />
+                        </DialogButtons>
+                        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+                    </SfDialog>
+                    <div>
+
+                        <SfGrid DataSource="@StudStatement"
+                                ID="GridExpense"
+                                GridLines="GridLine.Both"
+                        @ref="StatementGrid"
+                                Width="100%"
+                                AllowPaging="true"
+                                AllowFiltering="true"
+                                AllowResizing="true"
+                                AllowReordering="true"
+                                AllowExcelExport="true"
+                                ShowColumnChooser="true"
+                                RowHeight="24">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                            <GridPageSettings PageSize="50"></GridPageSettings>
+                            <GridSelectionSettings PersistSelection="true" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+                            <GridEvents Created="ActionCompletedHandler" ExcelAggregateTemplateInfo="ExcelAggregateTemplateInfoHandler" TValue="dtStudentStatement"></GridEvents>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Debit) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+                                                    <div>
+                                                        <p> @aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Credit) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+                                                    <div>
+                                                        <p> @aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Allocation) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+                                                    <div>
+                                                        <p> @aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Balance) Type="AggregateType.Custom" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+
+                                                    <div>
+                                                        <p>@GetBalanceAggregate()</p>
+                                                    </div>
+
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                            <GridColumns>
+
+                                <GridColumn Field=@nameof(dtStudentStatement.Vid) IsPrimaryKey="true" Visible="false" Width="120" Index="2" />
+                                <GridColumn Field=@nameof(dtStudentStatement.EffectiveDate) HeaderText="Date" Format="dd/MM/yyyy" Type="ColumnType.Date" Width="30" Index="3">
+                                    <Template>
+                                        @{
+                                            var RowStmt = (context as dtStudentStatement);
+                                            var date = RowStmt.EffectiveDate.ToString("dd/MM/yyyy");
+                                            if (RowStmt.Narration != "Previous Balance b/f")
+                                            {
+                                                <span>@date</span>
+                                            }
+                                            else
+                                            {
+                                                <span></span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Vno) IsPrimaryKey="true" Width="35" Index="3" />
+
+                                <GridColumn Field=@nameof(dtStudentStatement.Description) HeaderText=@Localizer["Description"] Width="110" Index="5"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Debit) HeaderText=@Localizer["Debit"] Width="25" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="6" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Credit) HeaderText=@Localizer["Credit"] Width="25" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="7" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Balance) HeaderText=@Localizer["Balance"] Width="25" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="8" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                                <GridColumn Width="17px" TextAlign="TextAlign.Center" Index="9">
+                                    <Template Context="MasterContext">
+                                        @{
+                                            string Vid = (MasterContext as dtStudentStatement).Vid.ToString();
+                                            string Vno = (MasterContext as dtStudentStatement).Vno.ToString();
+
+                                            string Veid = (MasterContext as dtStudentStatement).Veid.ToString();
+
+                                            string Credit = (MasterContext as dtStudentStatement).Credit.ToString();
+                                            string Debit = (MasterContext as dtStudentStatement).Debit.ToString();
+
+                                            string Narration = (MasterContext as dtStudentStatement).Narration.ToString();
+                                            string descri = (MasterContext as dtStudentStatement).Vno.ToString();
+                                            string opss = ((MasterContext as dtStudentStatement).Narration);
+
+                                            int common = 0;
+
+                                            int op = 0;
+                                            int jv = 0;
+
+                                            if (Credit != "0.000000" && opss != "Previous Balance b/f")
+                                            {
+                                                <a @onclick="@(async () => { await Voucher_click(Convert.ToInt32(Vid), Convert.ToDecimal(Credit), Vno,Convert.ToInt32(Veid)); })" title="Voucher Allocation"><img src="Images/OFEnter.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                                            }
+                                            //if (Narration.Contains("Discount"))
+
+                                            //{ common = 1; }
+                                            //if (Narration.Contains("discount"))
+
+                                            //{ common = 1; }
+                                            //if (descri.Contains("-SR"))
+
+                                            //{ common = 1; }
+                                            //if (descri.Contains("-sr"))
+
+                                            //{ common = 1; }
+
+
+                                            //if (Vno.Contains("-OP"))
+
+                                            //{ op = 1; }
+                                            //if (Vno.Contains("-JV"))
+
+                        //{ jv = 1; }
+
+                                            if ((MasterContext as dtStudentStatement).Narration == "Previous Balance b/f")
+                                            {
+                                                <a @onclick="@(async () => { await NoAllocationAlerts(); })"></a>
+
+
+                                            }
+                                            @*else if (common == 1)
+                        {
+                        <a @onclick="@(async () => { await Voucher_click(Convert.ToInt32(Vid), Convert.ToDecimal(Credit), Vno,Convert.ToInt32(Veid)); })" title="Voucher Allocation"><img src="Images/OFEnter.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                        }
+
+                        else if (op == 1)
+                        {
+                        <a @onclick="@(async () => { await Voucher_click(Convert.ToInt32(Vid), Convert.ToDecimal(Credit), Vno,Convert.ToInt32(Veid)); })" title="Voucher Allocation"><img src="Images/OFEnter.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                        }
+                        else if (jv == 1)
+                        {
+                        <a @onclick="@(async () => { await Voucher_click(Convert.ToInt32(Vid), Convert.ToDecimal(Credit), Vno,Convert.ToInt32(Veid)); })" title="Voucher Allocation"><img src="Images/OFEnter.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                        }*@
+
+                                            @*else if ((MasterContext as dtStudentStatement).DocumentType == 0 && (MasterContext as dtStudentStatement).Narration != "Previous Balance b/f")
+                        {
+                        <a @onclick="@(async () => { await Voucher_click(Convert.ToInt32(Vid), Convert.ToDecimal(Credit), Vno,Convert.ToInt32(Veid)); })" title="Voucher Allocation"><img src="Images/OFEnter.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                        }*@
+                                            else if ((MasterContext as dtStudentStatement).DocumentType != 0 && (MasterContext as dtStudentStatement).Narration != "Previous Balance b/f" && Credit == "0.000000")
+                                            {
+                                                <a @onclick="@(async () => { await NoAllocationAlert(Convert.ToInt32(Veid), Convert.ToDecimal(Debit)); })" title="Voucher Allocation Details"><img src="Images/OFEnter.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                                            }
+                                            //<SfButton  @onclick="@(async () => { await Voucher_click(Convert.ToInt32(Vid),Convert.ToDecimal(Credit)); })"   CssClass="e-btn" title="Voucher Matching" Content="Allocation"  />
+                                            else if ((MasterContext as dtStudentStatement).Narration != "Previous Balance b/f")
+                                            {
+                                                <a @onclick="@(async () => { await NoAllocationAlerts(); })"></a>
+
+
+                                            }
+
+                                        }
+
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Width="15px" TextAlign="TextAlign.Center" Index="10">
+                                    <Template>
+                                        @{
+                                            var RowStmt = (context as dtStudentStatement);
+                                            long VId = RowStmt.Vid;
+                                            if (RowStmt.Narration != "Previous Balance b/f")
+                                            {
+
+                                                <a @onclick="@(async() => {await StatementRowSelect(VId); })" title="Voucher View"><img src="Images/View.png" style="height: 20px; width: 20px; cursor: pointer;" /></a>
+
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Allocation) HeaderText=@Localizer["Alloted"] Width="25" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="11" HeaderTextAlign="TextAlign.Left" Visible="@isAlloted"></GridColumn>
+
+                            </GridColumns>
+
+                        </SfGrid>
+
+                    </div>
+                }
+            }
+
+            else
+            {
+
+                @if (ParentStudStatement.Count() < 0 || ParentStudStatement == null)
+                {
+                    <p><em>No Data..</em></p>
+                }
+                else
+                {
+
+                    <div>
+                        @*parent statement*@
+                        <SfGrid DataSource="@ParentStudStatement"
+                                ID="GridExpense"
+                                GridLines="GridLine.Both"
+                        @ref="ParentStatementGrid"
+                                Height="@GridHeight" Width="100%"
+                                AllowPaging="true"
+                                AllowFiltering="true"
+                                AllowResizing="true"
+                                AllowReordering="true"
+                                AllowExcelExport="true"
+                                ShowColumnChooser="true"
+                                RowHeight="23">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                            <GridPageSettings PageSize="50"></GridPageSettings>
+                            <GridSelectionSettings PersistSelection="true" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+                            <GridEvents Created="ParentActionCompletedHandler" ExcelAggregateTemplateInfo="ParentExcelAggregateTemplateInfoHandler" TValue="dtStudentStatement"></GridEvents>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Debit) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+                                                    <div>
+                                                        <p> @aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Credit) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+                                                    <div>
+                                                        <p> @aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Allocation) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+                                                    <div>
+                                                        <p> @aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(dtStudentStatement.Balance) Type="AggregateType.Custom" Format="n2">
+                                            <FooterTemplate Context="FooterContext">
+                                                @{
+                                                    var aggregate = (FooterContext as AggregateTemplateContext);
+
+                                                    <div>
+                                                        <p>@GetParentBalanceAggregate()</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                            <GridColumns>
+                                <GridColumn Width="15px" TextAlign="TextAlign.Center" Index="1">
+                                    <Template>
+                                        @{
+                                            var RowStmt = (context as dtStudentStatement);
+                                            long VId = RowStmt.Vid;
+                                            if (RowStmt.Narration != "Previous Balance b/f")
+                                            {
+
+                                                <a @onclick="@(async() => {await StatementRowSelect(VId); })"><img src="Images/View.png" style="height: 20px; width: 20px; cursor: pointer;" /></a>
+
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Vid) IsPrimaryKey="true" Visible="false" Width="120" Index="2" />
+                                <GridColumn Field=@nameof(dtStudentStatement.EffectiveDate) HeaderText=@Localizer["Date"] Format="dd/MM/yyyy" Type="ColumnType.Date" Width="25" Index="3">
+                                    <Template>
+                                        @{
+                                            var RowStmt = (context as dtStudentStatement);
+                                            var date = RowStmt.EffectiveDate.ToString("dd/MM/yyyy");
+                                            if (RowStmt.Narration != "Previous Balance b/f")
+                                            {
+                                                <span>@date</span>
+                                            }
+                                            else
+                                            {
+                                                <span></span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Vno) IsPrimaryKey="true" Width="35" Index="3" />
+                                @if (isParentChecked == true)
+                                {
+                                    <GridColumn Field=@nameof(dtStudentStatement.AccountName) HeaderText="Account Name" Width="90" Index="4"></GridColumn>
+
+                                }
+                                <GridColumn Field=@nameof(dtStudentStatement.Description) HeaderText=@Localizer["Description"] Width="120" Index="5"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Debit) HeaderText=@Localizer["Debit"] Width="30" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="6" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Credit) HeaderText=@Localizer["Credit"] Width="30" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="7" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Balance) HeaderText=@Localizer["Balance"] Width="30" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="8" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentStatement.Allocation) HeaderText=@Localizer["Alloted"] Width="25" CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Format="n2" Index="11" HeaderTextAlign="TextAlign.Left" Visible="@isAlloted"></GridColumn>
+
+                            </GridColumns>
+
+                        </SfGrid>
+
+                    </div>
+                }
+
+            }
+        }
+        else
+        {
+            @* FeeWise statement*@
+            @if (isParentChecked == false)
+            {
+
+
+                @if (StudFeeRegister.Count() <= 0 || StudFeeRegister == null)
+                {
+                    <p><em>No Data...</em></p>
+                    @* <p> <img src="gif/loading-waiting.gif" style=" width: 60px; height: 60px;" /></p>*@
+                }
+                else
+                {
+                    @*Fee Summary*@
+
+                    <div class="row" style="padding-top:.5rem;padding-bottom: 7px;width: 102%;padding-left: 5px;">
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Current Fee"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.CurrentFee" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Total Fee"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.TotalFee" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Total Discount"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.Discount" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Paid"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.Paid" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Total Balance"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.TotalBalance" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+                        <div class="col form-row">
+                            <label class="lblbold float-right">@Localizer["Current Balance"]:</label>
+                            <SfNumericTextBox @bind-Value="StudFeeSummary.CurrentBalance" HtmlAttributes="@ReceiptHistoryStyle" ShowSpinButton="false" Format="0.00" CssClass="e-custom" Enabled="false"></SfNumericTextBox>
+                        </div>
+
+
+                    </div>
+
+
+                    <div>
+                        <SfGrid DataSource="@StudFeeRegister" ID="gv_StudentFeeRegister" @ref="gv_StudentFeeRegister"
+                                GridLines="GridLine.Both"
+                                AllowFiltering="true"
+                                AllowPaging="true"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                Width="100%"
+                                ShowColumnChooser="true"
+                                AllowResizing="true"
+                                AllowSorting="true"
+                                EnableAltRow="true"
+                                RowHeight="20">
+                            @* <GridEvents OnToolbarClick="ToolbarClick" TValue="dtStudentFeeRegister"></GridEvents>*@
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridPageSettings PageSize="50"></GridPageSettings>
+
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Debit) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div style="padding-top:5px;">
+                                                        <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate.Sum</div>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Credit) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+
+
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Paid) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Balance) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+
+                            <GridColumns>
+
+                                @* <GridColumn Field=@nameof(dtStudentFeeRegister.AccountID) IsPrimaryKey="true" HeaderText="AccountID" Width="120" Visible="false"></GridColumn>
+                <GridColumn Field=@nameof(dtStudentFeeRegister.AccountCode) HeaderText="SCode" Width="90"></GridColumn>
+                <GridColumn Field=@nameof(dtStudentFeeRegister.AccountName) HeaderText="Student Name" Width="100"></GridColumn>*@
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.VID) Width="120" Visible="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.VNo) Width="80" Visible="false"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Date) HeaderText=@Localizer["Date"] Width="120" Format="dd/MM/yyyy"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Description) HeaderText=@Localizer["Description"] Width="170"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Debit) HeaderText=@Localizer["Amount"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="100" Format="n2" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Credit) HeaderText=@Localizer["Discount"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="90" Format="n2" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.DiscounAllocated) HeaderText=@Localizer["DiscountAllocated"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="100" Format="n2" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Paid) CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" HeaderText=@Localizer["Paid"] TextAlign="TextAlign.Right" Format="n2" Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Balance) HeaderText=@Localizer["Balance"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="100" Format="n2" HeaderTextAlign="TextAlign.Left">
+
+                                </GridColumn>
+                          
+                                <GridColumn Width="40" TextAlign="TextAlign.Center" Index="9">
+                                    <Template Context="MasterContext">
+                                        @{
+                                            string Vid = (MasterContext as dtStudentFeeRegister).ID.ToString();
+                                            string Debit = (MasterContext as dtStudentFeeRegister).Debit.ToString();
+
+                                            {
+                                             //   <a @onclick="@(async () => { await NoAllocationAlert(Convert.ToInt32(Vid),Convert.ToDecimal(Debit)); })" title="Voucher Allocation"><img src="Images/OFEnter.png" style="height:20px;width:30px; cursor:pointer;" /></a>
+                                            }
+                                            //<SfButton  @onclick="@(async () => { await Voucher_click(Convert.ToInt32(Vid),Convert.ToDecimal(Credit)); })"   CssClass="e-btn" title="Voucher Matching" Content="Allocation"  />
+                                        }
+                                    </Template>
+                                </GridColumn>
+
+                            </GridColumns>
+                        </SfGrid>
+
+
+
+                    </div>
+                }
+
+
+            }
+            else
+            {
+                @if (ParentFeeRegister.Count() <= 0 || ParentFeeRegister == null)
+                {
+                    <p><em>No Data...</em></p>
+                }
+                else
+                {
+                    <div>
+                        <SfGrid DataSource="@ParentFeeRegister" @ref="gv_ParentFeeRegister"
+                                GridLines="GridLine.Both"
+                                AllowFiltering="true"
+                                AllowPaging="true"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                Height="@GridHeight"
+                                Width="100%"
+                                ShowColumnChooser="true"
+                                AllowResizing="true"
+                                AllowSorting="true"
+                                EnableAltRow="true"
+                                RowHeight="25">
+                            @* <GridEvents OnToolbarClick="ToolbarClick" TValue="dtStudentFeeRegister"></GridEvents>*@
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridPageSettings PageSize="50"></GridPageSettings>
+
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Debit) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div style="padding-top:5px;">
+                                                        <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate.Sum</div>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Credit) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Paid) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentFeeRegister.Balance) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+
+                            <GridColumns>
+
+                                @* <GridColumn Field=@nameof(dtStudentFeeRegister.AccountID) IsPrimaryKey="true" HeaderText="AccountID" Width="120" Visible="false"></GridColumn>
+                <GridColumn Field=@nameof(dtStudentFeeRegister.AccountCode) HeaderText="SCode" Width="90"></GridColumn>*@
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Date) HeaderText=@Localizer["Date"] Width="60" Format="dd/MM/yyyy"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Description) HeaderText=@Localizer["Description"] Width="170"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.AccountName) HeaderText=@Localizer["Student Name"] Width="170"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Debit) HeaderText=@Localizer["Amount"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="80" Format="n2" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Credit) HeaderText=@Localizer["Discount"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="80" Format="n2" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.DiscounAllocated) HeaderText=@Localizer["DiscountAllocated"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="110" Format="n2" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Paid) CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" HeaderText="Paid" TextAlign="TextAlign.Right" Format="n2" Width="80" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                                <GridColumn Field=@nameof(dtStudentFeeRegister.Balance) HeaderText=@Localizer["Balance"] CustomAttributes="@(new Dictionary<string, object>(){ { "class", "e-attr" }})" TextAlign="TextAlign.Right" Width="80" Format="n2" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+
+                            </GridColumns>
+                        </SfGrid>
+                    </div>
+                }
+            }
+
+        }
+    </div>
+    @*Account Search*@
+    @if (isParentChecked == false)
+    {
+        @* Student Account Search*@
+        <div>
+            <SfDialog Width="80%" Height="90%" IsModal="true" @bind-Visible="AccountSearch" ShowCloseIcon="true">
+                <DialogEvents Opened="Opened" />
+
+                <DialogTemplates>
+                    <Header>
+                        <div style="padding-top:10px">
+                            <SfTextBox @ref="searchname" Input="OnInput" Placeholder=@Localizer["Search here"] Width="100%" ShowClearButton="true" CssClass="e-btn2" ValueChange="OnSearch"></SfTextBox>
+                        </div>
+                    </Header>
+                    <Content>
+                        <div>
+                            <SfGrid DataSource="@CustomerList"
+                                    GridLines="GridLine.Both"
+                            @ref="AccGrid"
+                                    Height="100%" Width="100%"
+                                    AllowPaging="true"
+                                    AllowFiltering="true"
+                                    AllowResizing="true"
+                                    AllowReordering="true"
+                                    ShowColumnChooser="true"
+                                    EnablePersistence="true"
+                                    RowHeight="23">
+                                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                                <GridPageSettings PageSize="50"></GridPageSettings>
+                                <GridSelectionSettings PersistSelection="true" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+                                <GridTemplates>
+                                </GridTemplates>
+                                <GridColumns>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.ID) IsPrimaryKey="true" Index="1" Visible="false" AllowFiltering="false"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.AccountCode) HeaderText=@Localizer["Student Code"] Index="2" Width="150"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.AccountName) HeaderText=@Localizer["Student Name"] Index="3" Width="300"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Sex) HeaderText=@Localizer["Gender"] Index="4" Width="120"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Class) HeaderText=@Localizer["Class"] Index="5" Width="100"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Division) HeaderText=@Localizer["Division"] Index="6" Width="100"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.ParentCode) HeaderText=@Localizer["Parent Code"] Index="7" Width="100"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Parent) HeaderText=@Localizer["Parent Name"] Index="8" Width="300"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Mobile) HeaderText=@Localizer["Mobile"] Index="9" Width="120"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Nationality) HeaderText=@Localizer["Nationality"] Index="10" Width="120"></GridColumn>
+                                </GridColumns>
+                                <GridEvents RowSelecting="AccountRowSelectingHandler" TValue="DtoInvAccounts"></GridEvents>
+                            </SfGrid>
+                        </div>
+                    </Content>
+                </DialogTemplates>
+                <DialogButtons>
+                    <DialogButton Content="Cancel" CssClass="e-btn" @onclick="@(() => AccountSearch = false)" />
+                </DialogButtons>
+                <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+            </SfDialog>
+        </div>
+    }
+    else
+    {
+        @* Parent Account Search*@
+        <div>
+            <SfDialog Width="80%" Height="90%" IsModal="true" @bind-Visible="ParentAccountSearch" ShowCloseIcon="true">
+                <DialogEvents Opened="Openedparent" />
+
+                <DialogTemplates>
+                    <Header>
+                        <div style="padding-top:10px">
+                            <SfTextBox @ref="Parentsearch" Input="OnInputParent" Placeholder=@Localizer["Search here"] Width="100%" ShowClearButton="true" CssClass="e-btn2" ValueChange="OnParentSearch"></SfTextBox>
+                        </div>
+                    </Header>
+                    <Content>
+                        <div>
+                            <SfGrid DataSource="@ParntCustomerList"
+                                    GridLines="GridLine.Both"
+                            @ref="ParentAccGrid"
+                                    Height="100%" Width="100%"
+                                    AllowPaging="true"
+                                    AllowFiltering="true"
+                                    AllowResizing="true"
+                                    AllowReordering="true"
+                                    ShowColumnChooser="true"
+                                    EnablePersistence="true"
+                                    RowHeight="23">
+                                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                                <GridPageSettings PageSize="50"></GridPageSettings>
+                                <GridSelectionSettings PersistSelection="true" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+                                <GridTemplates>
+                                </GridTemplates>
+                                <GridColumns>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.ID) IsPrimaryKey="true" Index="1" Visible="false" AllowFiltering="false"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.ParentCode) HeaderText=@Localizer["Parent Code"] Index="7" Width="100"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Parent) HeaderText=@Localizer["Parent Name"] Index="8" Width="300"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Mobile) HeaderText=@Localizer["Mobile"] Index="9" Width="120"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Email) HeaderText=@Localizer["Email"] Index="10" Width="120"></GridColumn>
+                                    <GridColumn Field=@nameof(DtoInvAccounts.Nationality) HeaderText=@Localizer["Nationality"] Index="11" Width="120"></GridColumn>
+                                </GridColumns>
+                                <GridEvents RowSelecting="ParentAccountRowSelectingHandler" TValue="DtoInvAccounts"></GridEvents>
+                            </SfGrid>
+                        </div>
+                    </Content>
+                </DialogTemplates>
+                <DialogButtons>
+                    <DialogButton Content="Cancel" CssClass="e-btn" @onclick="@(() => ParentAccountSearch = false)" />
+                </DialogButtons>
+                <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+            </SfDialog>
+        </div>
+
+    }
+
+    @*Voucher Allocation*@
+    <div>
+
+
+        <SfDialog Width="89%" Height="89%" AllowPrerender="true" IsModal="true" @bind-Visible="VoucherMatching" ShowCloseIcon="true">
+            <DialogEvents Closed="@ClosedHandler"></DialogEvents>
+            <DialogTemplates>
+                <Header>
+                    <div>
+                        Voucher Matching
+                    </div>
+                </Header>
+                <Content>
+                    <div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true">
+                                    @Success
+                                </BlazorStrap.BSAlert>
+                                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDangers" AutoHide="true">
+                                    @Faileds <a><i class="fa fa-exclamation-circle" aria-hidden="true"></i></a>
+                                </BlazorStrap.BSAlert>
+                                @*<SfButton @onclick="@Edit_Clickallo" IconCss="Icon edit" CssClass="e-btn" Content="Edit" />*@
+                                <SfButton Content="Save" IconCss="Icon save" @onclick="@save_ClickS" CssClass="e-btn" />
+
+                                <SfButton Content="DeleteAll" CssClass="e-btn" OnClick="@DeleteAll_Click"></SfButton>
+                                @*<SfButton Content="Auto" CssClass="e-btn" OnClick="@autoall">></SfButton>*@
+                                <SfButton Content="Close" CssClass="e-btn" OnClick="@Cancelmtchs_Click"></SfButton>
+
+
+                            </div>
+                            <div class="col-md-4">
+
+                                <label class="label">@Localizer["Voucher No"]:</label>
+                                <SfTextBox CssClass="textbox" @bind-Value="@vno" Enabled="false"></SfTextBox>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="label">@Localizer["Amount"]</label>
+                                <SfNumericTextBox TValue="decimal" Decimals="2" Min="0" @bind-Value="@Credits" Enabled="false" ShowSpinButton=false>
+                                </SfNumericTextBox>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding-top:10px;">
+                        @if (StudVouchrAlloc.Count() <= 0 || StudVouchrAlloc == null)
+                        {
+                            <p><em>No Data...</em></p>
+                        }
+                        else
+                        {
+                            <SfGrid DataSource="@StudVouchrAlloc" GridLines="GridLine.Both"
+                            @ref="StudVouchAlloc"
+                                    RowHeight="24" AllowPaging="true" AllowFiltering="true" AllowSelection="true"
+                                    EnablePersistence="false">
+                                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                                <GridPageSettings PageSize="50"></GridPageSettings>
+                                <GridEditSettings AllowEditing="true"></GridEditSettings>
+                                <GridSelectionSettings PersistSelection="true" CheckboxOnly="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Row" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple" EnableToggle=true></GridSelectionSettings>
+
+                                <GridEvents Created="CreatedHandler" RowSelecting="GetSelectedRecords_Posting" RowDeselecting="DeselectRecords" TValue="dtStudentStatement"></GridEvents>
+                                <GridAggregates>
+                                    <GridAggregate>
+                                        <GridAggregateColumns>
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Debit) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div style="padding-top:5px;">
+                                                            <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate.Sum</div>
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Amount) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div style="padding-top:5px;">
+                                                            <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate.Sum</div>
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Receipt) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div>
+                                                            <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Paid) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div>
+                                                            <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Balance) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div>
+
+                                                            <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+                                        </GridAggregateColumns>
+                                    </GridAggregate>
+                                </GridAggregates>
+                                <GridColumns>
+                                    <GridColumn Type="ColumnType.CheckBox" Width="10">
+                                    </GridColumn>
+
+                                    <GridColumn Field=@nameof(dtStudentStatement.Vid) Visible="false"> </GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Veid ) IsPrimaryKey="true" Visible="false"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Vno) HeaderText=@Localizer["Vno"] Width="50" HeaderTextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Description) HeaderText=@Localizer["RefNo"] Width="100" HeaderTextAlign="TextAlign.Left" AllowEditing="false"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Date) HeaderText=@Localizer["Date"] Format="dd/MM/yyyy" Type="ColumnType.Date" Width="50" AllowEditing="false" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Amount) HeaderText=@Localizer["Amount"] Width="50" AllowEditing="false" EditType="EditType.NumericEdit" EditorSettings="@PriceEditParams" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Paid) HeaderText=@Localizer["Paid"] Width="50" AllowEditing="false" EditType="EditType.NumericEdit" EditorSettings="@PriceEditParams" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Receipt) HeaderText=@Localizer["Allotted"] EditType="EditType.NumericEdit" EditorSettings="@PriceEditParams" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00" Width="50">
+                                        @*<Template>
+                                @{
+
+                                rpt = (context as dtStudentStatement).Receipt;
+                                <SfNumericTextBox  ShowSpinButton=false Value="rpt" HtmlAttributes="@RightAlignTextbox" ValidateDecimalOnType="true" Format="n2" Step="0" TValue="decimal"></SfNumericTextBox>
+                                }
+                                </Template>*@
+                                    </GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Balance) HeaderText=@Localizer["Balance"] Width="50" HeaderTextAlign="TextAlign.Left" EditType="EditType.NumericEdit" EditorSettings="@PriceEditParams" AllowEditing="false" TextAlign="TextAlign.Right" Format="0.00"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.RefNo) HeaderText=@Localizer["Description"] Width="80" AllowEditing="false" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                </GridColumns>
+
+                            </SfGrid>
+                        }
+                    </div>
+                </Content>
+                <FooterTemplate>
+                    <div class="row" style="padding-top:.5rem;">
+                        <div class="col form-row">
+                            <div class="col-md-2">
+                            </div>
+                            <div class="col-md-2" style="padding-top:5px;">
+                                <label class="lblbold float-right">@Localizer["Alloted Amount"]:</label>
+                            </div>
+                            <div class="col-md-3">
+                                <SfNumericTextBox TValue="decimal" @bind-Value="@allo" CssClass="textbox" Enabled="false" ShowSpinButton=false></SfNumericTextBox>
+                            </div>
+                            <div class="col-md-2" style="padding-top:5px;">
+                                <label class="lblbold float-right">@Localizer["UnAlloted Amount"]:</label>
+                            </div>
+                            <div class="col-md-3">
+                                <SfNumericTextBox TValue="decimal" @bind-Value="@unalloting" CssClass="textbox" Enabled="false" ShowSpinButton=false></SfNumericTextBox>
+                            </div>
+                        </div>
+                    </div>
+                </FooterTemplate>
+            </DialogTemplates>
+        </SfDialog>
+        <SfDialog Width="89%" Height="89%" AllowPrerender="true" IsModal="true" @bind-Visible="VoucherMatch" ShowCloseIcon="true">
+            <DialogEvents></DialogEvents>
+            <DialogTemplates>
+                <Header>
+                    <div>
+                        Voucher Matching
+                    </div>
+                </Header>
+                <Content>
+                    <div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true">
+                                    @Success
+                                </BlazorStrap.BSAlert>
+                                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDangers" AutoHide="true">
+                                    @Faileds <a><i class="fa fa-exclamation-circle" aria-hidden="true"></i></a>
+                                </BlazorStrap.BSAlert>
+                                <SfButton @onclick="@Edit_Clickallo" IconCss="Icon edit" CssClass="e-btn" Content=@Localizer["Edit"] />
+                                <SfButton Content=@Localizer["DeleteAll"] CssClass="e-btn" OnClick="@DeleteAll_Click"></SfButton>
+                                <SfButton Content=@Localizer["Auto"] CssClass="e-btn" OnClick="@autoall">></SfButton>
+                                <SfButton Content=@Localizer["Close"] CssClass="e-btn" OnClick="@Cancelmtchs_Click"></SfButton>
+
+
+                            </div>
+                            <div class="col-md-4">
+
+                                <label class="label">@Localizer["Voucher No"]:</label>
+                                <SfTextBox CssClass="textbox" @bind-Value="@vno" Enabled="false"></SfTextBox>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="label">@Localizer["Amount"]</label>
+                                <SfNumericTextBox TValue="decimal" Decimals="2" Min="0" @bind-Value="@Credits" Enabled="false" ShowSpinButton=false>
+                                </SfNumericTextBox>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding-top:10px;">
+                        @if (allogrids.Count() <= 0 || allogrids == null)
+                        {
+                            <p><em>No Allocation...</em></p>
+                        }
+                        else
+                        {
+                            <SfGrid DataSource="@allogrids" GridLines="GridLine.Both"
+                            @ref="allogridss"
+                                    RowHeight="24" AllowPaging="true" AllowFiltering="true" AllowSelection="true"
+                                    EnablePersistence="false">
+                                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                                <GridPageSettings PageSize="50"></GridPageSettings>
+                                <GridEditSettings AllowEditing="true"></GridEditSettings>
+                                <GridSelectionSettings PersistSelection="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Row" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple" EnableToggle=true></GridSelectionSettings>
+
+                                <GridEvents Created="CreatedHandlers" TValue="dtStudentStatement"></GridEvents>
+                                <GridAggregates>
+                                    <GridAggregate>
+                                        <GridAggregateColumns>
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Debit) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div style="padding-top:5px;">
+                                                            <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate.Sum</div>
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Amount) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div style="padding-top:5px;">
+                                                            <div style="font-size:13px; position: absolute; left: 7px;">TOTAL AMOUNT </div> <div style="align-items:end;">@aggregate.Sum</div>
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Receipt) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div>
+                                                            <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Paid) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div>
+                                                            <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+                                            <GridAggregateColumn Format="0.00" Field=@nameof(dtStudentStatement.Balance) Type="AggregateType.Sum">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        <div>
+
+                                                            <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+                                        </GridAggregateColumns>
+                                    </GridAggregate>
+                                </GridAggregates>
+                                <GridColumns>
+                                    <GridColumn Type="ColumnType.CheckBox" Width="10">
+                                    </GridColumn>
+
+                                    <GridColumn Field=@nameof(dtStudentStatement.Vid) Visible="false"> </GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Veid) IsPrimaryKey="true" Visible="false"> </GridColumn>
+
+                                    <GridColumn Field=@nameof(dtStudentStatement.ID ) Visible="false"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Vno) HeaderText=@Localizer["Vno"] AllowEditing="false" Width="50" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Description) HeaderText=@Localizer["RefNo"] AllowEditing="false" Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Date) HeaderText=@Localizer["Date"] Format="dd/MM/yyyy" AllowEditing="false" Type="ColumnType.Date" Width="50" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Amount) HeaderText=@Localizer["Amount"] Width="50" AllowEditing="false" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Paid) HeaderText=@Localizer["Paid"] Width="50" AllowEditing="false" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Receipt) HeaderText=@Localizer["Allotted"] AllowEditing="false" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00" Width="50"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Balance) HeaderText=@Localizer["Balance"] AllowEditing="false" Width="50" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.RefNo) HeaderText=@Localizer["Description"] AllowEditing="false" Width="80" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                </GridColumns>
+
+                            </SfGrid>
+                        }
+                    </div>
+                </Content>
+                <FooterTemplate>
+                    <div class="row" style="padding-top:.5rem;">
+                        <div class="col form-row">
+                            <div class="col-md-2">
+                                @*<SfButton Content="Save" IconCss="Icon save" @onclick="@save_ClickS" CssClass="e-btn" />*@
+                            </div>
+                            <div class="col-md-2" style="padding-top:5px;">
+                                <label class="lblbold float-right">@Localizer["Alloted Amount"]:</label>
+                            </div>
+                            <div class="col-md-3">
+                                <SfNumericTextBox TValue="decimal" @bind-Value="@allo" CssClass="textbox" Enabled="false" ShowSpinButton=false></SfNumericTextBox>
+                            </div>
+                            <div class="col-md-2" style="padding-top:5px;">
+                                <label class="lblbold float-right">@Localizer["UnAlloted Amount"]:</label>
+                            </div>
+                            <div class="col-md-3">
+                                <SfNumericTextBox TValue="decimal" @bind-Value="@unalloting" CssClass="textbox" Enabled="false" ShowSpinButton=false></SfNumericTextBox>
+                            </div>
+                        </div>
+                    </div>
+                </FooterTemplate>
+            </DialogTemplates>
+        </SfDialog>
+
+
+    </div>
+
+    <div>
+
+
+        <SfDialog Width="50%" Height="50%" AllowPrerender="true" IsModal="true" @bind-Visible="VoucherMatchings" ShowCloseIcon="true">
+            <DialogEvents Closed="@ClosedHandler"></DialogEvents>
+            <DialogTemplates>
+                <Header>
+                    <div>
+                    </div>
+                </Header>
+                <Content>
+                    <div>
+                    </div>
+                    <div style="padding-top:10px;">
+                        @if (allogrid.Count() <= 0 || allogrid == null)
+                        {
+                            <p><em>No Data...</em></p>
+                        }
+                        else
+                        {
+                            <SfGrid DataSource="@allogrid" GridLines="GridLine.Both"
+                            @ref="Gridallo"
+                                    Height="100%" Width="100%"
+                                    AllowPaging="true"
+                                    AllowFiltering="true"
+                                    AllowResizing="true"
+                                    AllowReordering="true"
+                                    ShowColumnChooser="true"
+                                    EnablePersistence="true"
+                                    RowHeight="23">
+                                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                                <GridPageSettings PageSize="20"></GridPageSettings>
+                                <GridSelectionSettings PersistSelection="true" Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+                                <GridTemplates>
+                                </GridTemplates>
+                                <GridAggregates>
+
+                                    <GridAggregate>
+                                        <GridAggregateColumns>
+                                            <GridAggregateColumn Field=@nameof(dtStudentStatement.Amount) Type="AggregateType.Sum" Format="#.00">
+                                                <FooterTemplate>
+                                                    @{
+                                                        var aggregate = (context as AggregateTemplateContext);
+                                                        @if (aggregate != null)
+                                                        {
+                                                            amount = (aggregate.Sum).ToString();
+                                                        }
+                                                        <div>
+                                                            Total : @aggregate.Sum
+
+                                                        </div>
+                                                    }
+                                                </FooterTemplate>
+                                            </GridAggregateColumn>
+                                        </GridAggregateColumns>
+                                    </GridAggregate>
+                                </GridAggregates>
+
+                                <GridColumns>
+
+                                    <GridColumn Field=@nameof(dtStudentStatement.Vid ) Visible="false" Width="50" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                                    <GridColumn Field=@nameof(dtStudentStatement.Vno) IsPrimaryKey="true" HeaderText="VNo" Width="50" HeaderTextAlign="TextAlign.Left"> </GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Vdate ) HeaderText=@Localizer["VDate"] Type="ColumnType.Date" Format="dd/MM/yyyy" Width="50" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                    <GridColumn Field=@nameof(dtStudentStatement.Amount) HeaderText=@Localizer["Amount"] Width="50" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" Format="0.00"></GridColumn>
+
+                                    @if (CompanyCode != "ARCADIA")
+                                    {
+
+
+
+                                        <GridColumn Width="40px" HeaderText=@Localizer["Delete"]>
+                                            <Template Context="MasterContext">
+                                                @{
+                                                    var reciptvid = (MasterContext as dtStudentStatement).Vid;
+                                                    var billvid = VID;
+                                                    <a @onclick="@(() => { Delete_Click(Convert.ToInt32(reciptvid),Convert.ToInt32(billvid)); })"><img src="Images/delete1.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                                                }
+                                            </Template>
+                                        </GridColumn>
+                                    }
+
+                                </GridColumns>
+
+                            </SfGrid>
+                        }
+                    </div>
+                </Content>
+                <FooterTemplate>
+                    <div class="row" style="padding-top:.5rem;">
+                    </div>
+                </FooterTemplate>
+            </DialogTemplates>
+        </SfDialog>
+
+        <SfDialog Width="30%" Height="30%" AllowPrerender="true" IsModal="true" @bind-Visible="Deleteall" ShowCloseIcon="true">
+            <DialogEvents Closed="@ClosedHandler"></DialogEvents>
+            <DialogTemplates>
+                <Header>
+                    <div>
+                    </div>
+                </Header>
+                <Content>
+                    <div class="row" style="padding-left:.5rem;">
+
+
+                        <label class="label">From which date allocation to be Delete ?</label>
+
+                    </div>
+
+
+                    <div class="row" style="padding-top:.5rem;">
+
+                        @*<div class="col-md-2" style="padding-top:5px;">
+                    <label class="lblbold float-right"></label>
+                    </div>*@
+
+                        <div class="col-md-9">
+                            <SfDatePicker AllowEdit="true" TValue="DateTime" ShowClearButton="true" Format="dd/MM/yyyy" @bind-Value="Dates">
+                            </SfDatePicker>
+                        </div>
+                        @*<div class="col-md-2" style="padding-top:5px;">
+                    <label class="lblbold float-right"></label>
+                    </div>*@
+                        <div class="col-md-3">
+
+                            <SfButton Content=@Localizer["Delete"] CssClass="e-btn" OnClick="@deletetheallocation">></SfButton>
+                        </div>
+                    </div>
+
+                </Content>
+                <FooterTemplate>
+                    <div class="row" style="padding-top:.5rem;">
+                    </div>
+                </FooterTemplate>
+            </DialogTemplates>
+        </SfDialog>
+
+        <SfDialog Width="30%" Height="30%" AllowPrerender="true" IsModal="true" @bind-Visible="auto " ShowCloseIcon="true">
+            <DialogEvents Closed="@ClosedHandler"></DialogEvents>
+            <DialogTemplates>
+                <Header>
+                    <div>
+                    </div>
+                </Header>
+                <Content>
+                    <div class="row" style="padding-left:.5rem;">
+
+
+                        <label class="label">Select a date ?</label>
+
+                    </div>
+
+
+                    <div class="row" style="padding-top:.5rem;">
+
+                        @*<div class="col-md-2" style="padding-top:5px;">
+                    <label class="lblbold float-right"></label>
+                    </div>*@
+
+                        <div class="col-md-9">
+                            <SfDatePicker AllowEdit="true" TValue="DateTime" ShowClearButton="true" Format="dd/MM/yyyy" @bind-Value="Dateauto">
+                            </SfDatePicker>
+                        </div>
+                        @*<div class="col-md-2" style="padding-top:5px;">
+                    <label class="lblbold float-right"></label>
+                    </div>*@
+                        <div class="col-md-3">
+
+                            <SfButton Content="Allocate" CssClass="e-btn" OnClick="@allocateall">></SfButton>
+                        </div>
+                    </div>
+
+                </Content>
+                <FooterTemplate>
+                    <div class="row" style="padding-top:.5rem;">
+                    </div>
+                </FooterTemplate>
+            </DialogTemplates>
+        </SfDialog>
+
+        <SfDialog Width="30%" Height="30%" AllowPrerender="true" IsModal="true" @bind-Visible="autoalls" ShowCloseIcon="true">
+            <DialogEvents Closed="@ClosedHandler"></DialogEvents>
+            <DialogTemplates>
+                <Header>
+                    <div>
+                    </div>
+                </Header>
+                <Content>
+                    <div class="row" style="padding-left:.5rem;">
+
+
+                        <label class="label" style="text-size-adjust=20px;">Auto Allocation Done Successfully, Close the tab and reopen it again</label>
+
+                    </div>
+
+
+
+
+                </Content>
+                <FooterTemplate>
+                    <div class="row" style="padding-top:.5rem;">
+                    </div>
+                </FooterTemplate>
+            </DialogTemplates>
+        </SfDialog>
+
+    </div>
+
+    <SfDialog Width="400" CloseOnEscape="true" IsModal="true" Height="200" @bind-Visible="PopupDifferenceError">
+        <DialogTemplates>
+            <Content>
+                <div style="text-align:center;">
+                    <img src="gif/IconWarning.gif" style=" width: 60px; height: 60px;" />
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size: medium; color: #842029;">Allocated amount is greater than credit amount !!!</div>
+                </div>
+                <div class="pt-2" style="text-align:center;">
+                    <SfButton Content="OK" title="Ok" CssClass="e-outline" OnClick="@(() => PopupDifferenceError = false)" />
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+    </SfDialog>
+
+    <SfDialog Width="400" CloseOnEscape="true" IsModal="true" Height="200" @bind-Visible="PopupVisible">
+        <DialogTemplates>
+            <Content>
+                <div style="text-align:center;">
+                    <img src="gif/IconSuccess.gif" style=" width: 60px; height: 60px;" />
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:medium;color:forestgreen">Allocated Successfully !!!</div>
+                </div>
+                <div class="pt-2" style="text-align:center;">
+                    <SfButton Content="OK" title="Ok" CssClass="e-outline" OnClick="@(() => PopupVisible = false)" />
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+    </SfDialog>
+
+    <SfDialog Width="400" CloseOnEscape="true" IsModal="true" Height="220" @bind-Visible="PopupError">
+        <DialogTemplates>
+            <Content>
+                <div style="text-align:center;">
+                    <img src="gif/IconWarning.gif" style=" width: 60px; height: 60px;" />
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size: medium; color: #842029;">Something went wrong !!!</div>
+                </div>
+                @*<div style="text-align:center;">
+            <div style="font-size: small; color: #842029;">Please Check Receipt No !!!</div>
+            </div>*@
+                <div class="pt-2" style="text-align:center;">
+                    <SfButton Content="OK" title="Ok" CssClass="e-outline" OnClick="@(() => PopupError = false)" />
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+    </SfDialog>
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    Permission Denied
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+     [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    public string? SessionAcademicYear, ParentName, StudentName, classDiv = "", CurrentAccYr, Success, Category, CustList = "", SelectParent = " ", VID, Faileds, sumagg, amount, CompanyCode = "", vno, Con;
+    public DateTime AccyrFromDate, AccyrEndDate;
+    int? BranchID, user, MenuStudID;
+    public int? AccountID { get; set; }
+    public long AccID, vID, Vids, Vid, VIDE;
+    public bool IsOpen = false;
+    public int Vi, Loading = 0, HomeLoad = 1;
+    public decimal Credits, unalloting, s, allo, Creditstotal, sumallo, rpt;
+    private Dictionary<string, object> ReceiptHistoryStyle { get; set; } = new Dictionary<string, object>() { { "style", "text-align-last: right;padding-right: 10px;border: solid 1px #4758a8;background-color: #d6e1f5;" } };
+    string GridHeight = "500px";
+    bool AccountSearch = false, isFeeChecked = false, isParentChecked = false, isTaxStatmnt = false, isAlloted = false, ParentAccountSearch, VoucherMatching = false, VoucherMatchings = false, Deleteall = false, VoucherMatch = false, auto = false, autoalls = false,
+    Headchecked = false, Head = false, IsOpenDangers = false, PopupDifferenceError = false, saveError = false, PopupVisible = false, PopupError = false;
+    public DateTime? EndDate { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime Dates = DateTime.Now;
+    public DateTime Dateauto = DateTime.Now;
+    bool AllowOpen = true, Open, OpenError, visible = false;
+    public bool PopupDeVisibletrue = false;
+    public List<dtStudentStatement> StudStatement = new List<dtStudentStatement>();
+    public List<dtStudentStatement> allogrid = new List<dtStudentStatement>();
+    public List<dtStudentStatement> allogrids = new List<dtStudentStatement>();
+    private Dictionary<string, object> RightAlignTextbox { get; set; } = new Dictionary<string, object>() { { "style", "text-align-last: right;padding-right: 10px;" } };
+    public List<dtStudentStatement> ParentStudStatement = new List<dtStudentStatement>();
+    public List<dtStudentStatement> SibStatement = new List<dtStudentStatement>();
+    public List<dtStudentStatement> TaxStatement = new List<dtStudentStatement>();
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    public IList<DtoInvAccounts> CustomerList = new List<DtoInvAccounts>();
+    public IList<DtoInvAccounts> ParntCustomerList = new List<DtoInvAccounts>();
+
+    public List<DtoInvAccounts> ParentList = new List<DtoInvAccounts>();
+    public IList<DtoInvAccounts> SibList = new List<DtoInvAccounts>();
+    public IList<dtStudentFeeRegister> StudFeeRegister = new List<dtStudentFeeRegister>();
+    public IList<dtStudentFeeRegister> ParentFeeRegister = new List<dtStudentFeeRegister>();
+    //public IList<dtStudentFeeRegister> StudFeeRegisterAll = new List<dtStudentFeeRegister>();
+    public List<int> SelectedNodeIndex = new List<int>();
+    public IList<dtStudentStatement> StudVouchrAlloc = new List<dtStudentStatement>();
+    public dtStudentFeeSummary StudFeeSummary = new dtStudentFeeSummary();
+    //VoucherAlloc
+    public List<dtStudentStatement> savelist = new List<dtStudentStatement>();
+    public List<dtStudentStatement> deletelist = new List<dtStudentStatement>();
+    public List<dtStudentStatement> editlist = new List<dtStudentStatement>();
+    public List<dtStudentStatement> oldlist = new List<dtStudentStatement>();
+    public List<dtStudentStatement> unallolist = new List<dtStudentStatement>();
+    public IList<dtCompany> CompanyDetails = new List<dtCompany>();
+    //Arcadia--Changes
+    public List<dtoFormLabelSettings> FormLabelList = new List<dtoFormLabelSettings>();
+    dtoFormLabelSettings btnPdf2 = new dtoFormLabelSettings();
+    DtoLoginModel? info = new DtoLoginModel();
+    UserRights objUserRight = new UserRights();
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+    DtoInvAccounts ObCustomer = new DtoInvAccounts();
+    DtoInvAccounts ObParent = new DtoInvAccounts();
+
+    public SfGrid<dtStudentStatement> StatementGrid;
+    public SfGrid<dtStudentStatement> Gridallo;
+    public SfGrid<dtStudentStatement> allogridss;
+    public SfGrid<dtStudentStatement> ParentStatementGrid;
+    public SfGrid<DtoInvAccounts> AccGrid;
+    public SfGrid<DtoInvAccounts> ParentAccGrid;
+    public SfGrid<dtStudentStatement>? StudVouchAlloc { get; set; }
+    public SfGrid<dtStudentFeeRegister>? gv_StudentFeeRegister { get; set; }
+    public SfGrid<dtStudentFeeRegister>? gv_ParentFeeRegister { get; set; }
+    SfTextBox? AccountRef;
+    SfTextBox? AccountParntRef;
+    SfTextBox? search;
+    SfTextBox? Parentsearch;
+
+    [Inject]
+    protected IJSRuntime JsRuntime { get; set; }
+
+
+
+    public IEditorSettings PriceEditParams = new NumericEditCellParams
+        {
+            Params = new NumericTextBoxModel<object>() { Min = 0, ShowSpinButton = false, Decimals = 2, Format = "n2", ValidateDecimalOnType = true }
+        };
+    protected async override Task OnInitializedAsync()
+    {
+        await Layout.VersionChecker();
+        try
+        {
+            await GetLoginInfo();
+            if (info != null)
+            {
+                user = info.UserID;
+                BranchID = info.BranchID;
+                AccountID = info.AccountID;
+                CompanyCode = info.BranchName;
+                if (CompanyCode == null || CompanyCode == "")
+                    CompanyCode = await sessionStorage.GetItemAsync<string>("Company");
+                CompanyDetails = (await StudentCompanyService.GetCompanyDetails(Convert.ToInt64(BranchID))).ToList();
+
+                //AcademicYear
+                CmbYear = (await _IStudentMaster.GetAcademicYear(BranchID))!.ToList();
+                //objAccYear = (CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault())!;
+                SessionAcademicYear = await sessionStorage.GetItemAsync<string>("AcademicYear");
+                //objAccYear = CmbYear.Where(b => b.Status.Trim() == "Current").FirstOrDefault();
+                objAccYear = CmbYear.Where(b => b.AcademicYear.Trim() == SessionAcademicYear).FirstOrDefault();
+                CurrentAccYr = objAccYear.AcademicYear.ToString();
+                AccyrFromDate = objAccYear.StartDate;
+                AccyrEndDate = objAccYear.EndDate;
+                AccyrEndDate = AccyrEndDate.AddMonths(2).AddDays(1);
+                //AccYr End Date
+                EndDate = AccyrEndDate;
+                StartDate = AccyrFromDate;
+                //FormLabel setting
+                FormLabelList = (await generalServ.GetLabels("frmStudentStatement"))!.ToList();
+
+                if (FormLabelList != null)
+                {
+                    btnPdf2 = FormLabelList.Where(a => a.LabelName == "btnPrint2").FirstOrDefault()!;
+                }
+                if (info.Category == "Administrator")
+                {
+                    AllowOpen = true;
+                    Open = false;
+
+                    StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+
+                    var dimension = await IJS.InvokeAsync<DtoWindowDimension>("getWindowDimensions");
+                    GridHeight = (dimension.Height - 180).ToString() + "px";
+                    if (user == 0)
+                    {
+                        await sessionStorage.ClearAsync();
+                        NavManager.NavigateTo("Login");
+                    }
+                    else
+                    {
+
+                        CustomerList = (await _IInvAccounts.GetStudentsAccountsReceipt(BranchID, "StudentReceipt")!).ToList();
+                        if (Id != null)
+                            MenuStudID = int.Parse(Id);
+
+                        if (CustomerList.Count() > 0)
+                        {
+                            if (MenuStudID != 0)
+                            {
+
+                                ObCustomer = CustomerList.Where(x => x.ID == MenuStudID).FirstOrDefault();
+                                if (ObCustomer != null)
+                                {
+                                    CustList = ObCustomer.AccountName;
+                                    AccountSearch = false;
+                                    classDiv = ObCustomer.Class + "-" + ObCustomer.Division;
+                                    StudentName = CustList + "(" + ObCustomer.AccountCode + ")";
+                                    StudStatement = (await StudentMasterService.GetStatement(AccyrFromDate.ToString("MM/dd/yyyy"), AccyrEndDate.ToString("MM/dd/yyyy"), Convert.ToInt32(ObCustomer.ID), BranchID)).ToList();
+                                    StudFeeSummary = (await _IPostingManager.GetFeeSummary(ObCustomer.ID, BranchID, CurrentAccYr))!;
+                                    StudStatement = StudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+                                    StudFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Student", Convert.ToInt32(ObCustomer.ID), AccyrFromDate.ToString("MM/dd/yyyy"), AccyrEndDate.ToString("MM/dd/yyyy"), "Studying"))!.ToList();
+                                    await CalculateBalance();
+                                }
+
+                            }
+                            ParntCustomerList = CustomerList.GroupBy(p => (p.ParentCode, p.Parent)).Select(g => g.First()).ToList();
+
+                        }
+                    }
+                }//end admin categry
+                else
+                {
+                    try
+                    {
+                        objUserRight = (await generalServ.GetUserRights(user, "Statement", "Students", BranchID))!;
+
+                        if (objUserRight.AccessDenied == true)
+                        {
+                            AllowOpen = false;
+                            Open = true;
+                        }
+                        else if (objUserRight.AllowOpen == true)
+                        {
+                            AllowOpen = true;
+                            Open = false;
+
+                            StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+
+
+                            var dimension = await IJS.InvokeAsync<DtoWindowDimension>("getWindowDimensions");
+                            GridHeight = (dimension.Height - 180).ToString() + "px";
+
+                            if (user == 0)
+                            {
+                                await sessionStorage.ClearAsync();
+                                NavManager.NavigateTo("Login");
+                            }
+                            else
+                            {
+
+                                CustomerList = (await _IInvAccounts.GetStudentsAccountsReceipt(BranchID,"StudentReceipt")).ToList();
+                                if (Id != null)
+                                    MenuStudID = int.Parse(Id);
+
+                                if (CustomerList.Count() > 0)
+                                {
+                                    if (MenuStudID != 0)
+                                    {
+
+                                        ObCustomer = CustomerList.Where(x => x.ID == MenuStudID).FirstOrDefault();
+                                        if (ObCustomer != null)
+                                        {
+                                            CustList = ObCustomer.AccountName;
+                                            AccountSearch = false;
+                                            classDiv = ObCustomer.Class + "-" + ObCustomer.Division;
+                                            StudentName = CustList + "(" + ObCustomer.AccountCode + ")";
+                                            StudStatement = (await StudentMasterService.GetStatement(AccyrFromDate.ToString("MM/dd/yyyy"), AccyrEndDate.ToString("MM/dd/yyyy"), Convert.ToInt32(ObCustomer.ID), BranchID)).ToList();
+                                            StudFeeSummary = (await _IPostingManager.GetFeeSummary(ObCustomer.ID, BranchID, CurrentAccYr));
+                                            StudStatement = StudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+                                            StudFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Student", Convert.ToInt32(ObCustomer.ID), AccyrFromDate.ToString("MM/dd/yyyy"), AccyrEndDate.ToString("MM/dd/yyyy"), "Studying")).ToList();
+                                            await CalculateBalance();
+                                        }
+                                    }
+                                    ParntCustomerList = CustomerList.GroupBy(p => (p.ParentCode, p.Parent)).Select(g => g.First()).ToList();
+
+                                }
+                            }
+                        }
+                        else
+                        {
+                            AllowOpen = false;
+                            Open = true;
+                        }
+                        HomeLoad = 0;
+                        StateHasChanged();
+                    }
+                    catch (Exception ex)
+                    {
+                        AllowOpen = false;
+                        Open = true;
+                    }
+                }
+            }
+            HomeLoad = 0;
+            StateHasChanged();
+        }
+        catch(Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+        }
+    }
+    //others--functions
+
+    //Running Balance
+
+    public void ActionCompletedHandler(object args)
+    {
+        //refGrid.Refresh();
+        StatementGrid.HideSpinnerAsync();
+        StudStatement = (StatementGrid.GetCurrentViewRecordsAsync()).Result;
+        for (int i = 0; i <= StudStatement.Count() - 1; i++)
+        {
+            if (StudStatement.ToList()[i].Debit != null && StudStatement.ToList()[i].Debit != 0)
+            {
+                decimal Sum;
+                if (i != 0)
+                    Sum = StudStatement.ToList()[i - 1].Balance;
+                else
+                    Sum = 0;
+                StudStatement.ToList()[i].Balance = Sum + StudStatement.ToList()[i].Debit;
+            }
+            if (StudStatement[i].Credit != null && StudStatement.ToList()[i].Credit != 0)
+            {
+                decimal Sum;
+                if (i != 0)
+                    Sum = StudStatement.ToList()[i - 1].Balance;
+                else
+                    Sum = 0;
+                StudStatement.ToList()[i].Balance = Sum - StudStatement.ToList()[i].Credit;
+            }
+        }
+        StatementGrid.Refresh();
+    }
+    public void ParentActionCompletedHandler(object args)
+    {
+        //refGrid.Refresh();
+        ParentStatementGrid.HideSpinnerAsync();
+        ParentStudStatement = (ParentStatementGrid.GetCurrentViewRecordsAsync()).Result;
+        try
+        {
+            for (int i = 0; i <= ParentStudStatement.Count() - 1; i++)
+            {
+                if (ParentStudStatement.ToList()[i].Debit != null && ParentStudStatement.ToList()[i].Debit != 0)
+                {
+                    decimal Sum;
+                    if (i != 0)
+                        Sum = ParentStudStatement.ToList()[i - 1].Balance;
+                    else
+                        Sum = 0;
+                    ParentStudStatement.ToList()[i].Balance = Sum + ParentStudStatement.ToList()[i].Debit;
+                }
+                if (ParentStudStatement[i].Credit != null && ParentStudStatement.ToList()[i].Credit != 0)
+                {
+                    decimal Sum;
+                    if (i != 0)
+                        Sum = ParentStudStatement.ToList()[i - 1].Balance;
+                    else
+                        Sum = 0;
+                    ParentStudStatement.ToList()[i].Balance = Sum - ParentStudStatement.ToList()[i].Credit;
+                }
+            }
+            if (ParentStatementGrid != null)
+                ParentStatementGrid.Refresh();
+            InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    SfTextBox searchname { get; set; }
+
+    void Opened(Syncfusion.Blazor.Popups.OpenEventArgs args)
+    {
+        args.PreventFocus = true;
+
+        searchname.FocusAsync();
+    }
+    void Openedparent(Syncfusion.Blazor.Popups.OpenEventArgs args)
+    {
+        args.PreventFocus = true;
+
+        Parentsearch.FocusAsync();
+    }
+    public async Task popClose_Click()
+    {
+
+        PopupDeVisibletrue = false;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task FocusHandler(FocusInEventArgs args)
+    {
+
+        AccountSearch = true;
+
+
+
+        await AccountRef.FocusOutAsync();
+        await InvokeAsync(StateHasChanged);
+        CustList = await sessionStorage.GetItemAsync<string>("CustList");
+
+    }
+    //PARENT
+    private async Task ParentFocusHandler(FocusInEventArgs args)
+    {
+        ParentAccountSearch = true;
+        await AccountParntRef.FocusOutAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+    public string GetBalanceAggregate()
+    {
+        // Here, you can calculate custom aggregate operations and return the result.
+
+        var Scredit = StudStatement.Sum(X => X.Credit);
+        var Sdebit = StudStatement.Sum(X => X.Debit);
+        return (Sdebit - Scredit).ToString("0.00");
+    }
+
+    public string GetParentBalanceAggregate()
+    {
+        // Here, you can calculate custom aggregate operations and return the result.
+
+        var Scredit = ParentStudStatement.Sum(X => X.Credit);
+        var Sdebit = ParentStudStatement.Sum(X => X.Debit);
+        return (Sdebit - Scredit).ToString("0.00");
+    }
+
+
+    //Account Search Dialogbox
+    public async Task AccountRowSelectingHandler(RowSelectingEventArgs<DtoInvAccounts> args)
+    {
+        try
+        {
+            Loading = 1;
+            CustList = args.Data.AccountName;
+            AccountSearch = false;
+            ObCustomer = args.Data;
+            classDiv = args.Data.Class + "-" + args.Data.Division;
+            StudentName = CustList + "(" + args.Data.AccountCode + ")";
+
+            StudStatement = (await StudentMasterService.GetStatement(StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), Convert.ToInt32(ObCustomer.ID), BranchID)).ToList();
+            StudFeeSummary = (await _IPostingManager.GetFeeSummary(args.Data.ID, BranchID, CurrentAccYr));
+            //Sorting
+            StudStatement = StudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+            StudFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Student", Convert.ToInt32(ObCustomer.ID), StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), "Studying"))!.ToList();
+            await CalculateBalance();
+            //Resetting Date
+            //StartDate = AccyrFromDate;
+            //EndDate = DateTime.Now.Date;
+            if (gv_StudentFeeRegister != null)
+                await gv_StudentFeeRegister.Refresh();
+            if (StatementGrid != null)
+                await StatementGrid.Refresh();
+            Loading = 0;
+            await InvokeAsync(StateHasChanged);
+
+        }
+        catch (Exception ex)
+        {
+            Loading = 0;
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public async Task ParentAccountRowSelectingHandler(RowSelectingEventArgs<DtoInvAccounts> args)
+    {
+        try
+        {
+            Loading = 1;
+            SelectParent = args.Data.Parent;
+            ParentName = SelectParent + "(" + args.Data.ParentCode + ")";
+            ParentAccountSearch = false;
+            ObParent = args.Data;
+
+            ParentStudStatement.Clear();
+            ParentStudStatement = (await StudentMasterService.GetStatement(StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), Convert.ToInt32(ObParent.ParentID), BranchID)).ToList();
+
+            if (ParentStudStatement.Count() > 0)
+            {
+                ParentStudStatement = ParentStudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+
+                await ParentCalculateBalance();
+            }
+            //FeeWise-Parent
+            ParentFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Parent", Convert.ToInt32(ObParent.ParentID), StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), "Studying")).ToList();
+            if (ParentFeeRegister.Count() > 0)
+            {
+                ParentFeeRegister[0].ParentCode = ObParent.ParentCode;
+                ParentFeeRegister[0].ParentName = ObParent.Parent;
+            }
+            if (ParentStatementGrid != null)
+                await ParentStatementGrid.Refresh();
+            Loading = 0;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+
+
+
+    //Calculate Running Balance
+    public async Task CalculateBalance()
+    {
+        try
+        {
+            for (int i = 0; i <= StudStatement.Count() - 1; i++)
+            {
+                if (StudStatement.ToList()[i].Debit != null && StudStatement.ToList()[i].Debit != 0)
+                {
+                    decimal Sum;
+                    if (i != 0)
+                        Sum = StudStatement.ToList()[i - 1].Balance;
+                    else
+                        Sum = 0;
+                    StudStatement.ToList()[i].Balance = Sum + StudStatement.ToList()[i].Debit;
+                }
+                if (StudStatement[i].Credit != null && StudStatement.ToList()[i].Credit != 0)
+                {
+                    decimal Sum;
+                    if (i != 0)
+                        Sum = StudStatement.ToList()[i - 1].Balance;
+                    else
+                        Sum = 0;
+                    StudStatement.ToList()[i].Balance = Sum - StudStatement.ToList()[i].Credit;
+
+                }
+            }
+            if (StatementGrid != null)
+                await StatementGrid.Refresh();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    //Parent- Calculate Balance
+    public async Task ParentCalculateBalance()
+    {
+        try
+        {
+            for (int i = 0; i <= ParentStudStatement.Count() - 1; i++)
+            {
+                if (ParentStudStatement.ToList()[i].Debit != null && ParentStudStatement.ToList()[i].Debit != 0)
+                {
+                    decimal Sum;
+                    if (i != 0)
+                        Sum = ParentStudStatement.ToList()[i - 1].Balance;
+                    else
+                        Sum = 0;
+                    ParentStudStatement.ToList()[i].Balance = Sum + ParentStudStatement.ToList()[i].Debit;
+                }
+                if (ParentStudStatement[i].Credit != null && ParentStudStatement.ToList()[i].Credit != 0)
+                {
+                    decimal Sum;
+                    if (i != 0)
+                        Sum = ParentStudStatement.ToList()[i - 1].Balance;
+                    else
+                        Sum = 0;
+                    ParentStudStatement.ToList()[i].Balance = Sum - ParentStudStatement.ToList()[i].Credit;
+                }
+            }
+            if (ParentStatementGrid != null)
+                await ParentStatementGrid.Refresh();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    public async Task OnInput(InputEventArgs args)
+    {
+        try
+        {
+            await this.AccGrid.SearchAsync(args.Value);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public void OnSearch(Syncfusion.Blazor.Inputs.ChangedEventArgs args)
+    {
+        try
+        {
+            if (args.Value != null)
+            {
+                AccGrid.SearchAsync(args.Value);
+                this.StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    //Parent
+    public async Task OnInputParent(InputEventArgs args)
+    {
+        try
+        {
+            await this.ParentAccGrid.SearchAsync(args.Value);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public void OnParentSearch(Syncfusion.Blazor.Inputs.ChangedEventArgs args)
+    {
+        try
+        {
+            if (args.Value != null)
+            {
+                ParentAccGrid.SearchAsync(args.Value);
+                this.StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    //Navigation
+    public async Task StatementRowSelect(long Vid)
+    {
+        //await SessionStorage.SetItemAsync("CustList", CustList);
+
+        // Here, you can customize your code.
+        if (Vid != 0 && Vid != -1)
+            NavManager.NavigateTo("VoucherDetails/" + Vid+"/"+ObCustomer.ID);
+    }
+    //Excel
+    public void ExcelExport()
+    {
+        try
+        {
+            ExcelExportProperties ExcelProperties = new ExcelExportProperties();
+
+            ExcelHeader header = new ExcelHeader();
+            header.HeaderRows = 2;
+            if (isFeeChecked == false)
+            {
+                //student statement
+                if (isParentChecked == false)
+                {
+                    List<ExcelCell> cell = new List<ExcelCell>
+{
+                        new ExcelCell() { RowSpan= 2,ColSpan=6 , Value= "Student: "+@CustList+"   ProgrammeCode: "+@ObCustomer.Class+"   ProgrammeYear: "+@ObCustomer.Division,Style = new ExcelStyle() { FontSize = 12, Italic= true,HAlign=Syncfusion.Blazor.Grids.ExcelHorizontalAlign.Center }  }
+                    };
+
+                    List<ExcelRow> HeaderContent = new List<ExcelRow>
+{
+                        new ExcelRow() {  Cells = cell, Index = 1 }
+                    };
+                    header.Rows = HeaderContent;
+                    ExcelProperties.Header = header;
+
+
+                    ExcelProperties.IncludeTemplateColumn = true;
+
+                    ExcelProperties.FileName = "StudentStatement.xlsx";
+                    this.StatementGrid.ExportToExcelAsync(ExcelProperties);
+                }
+                //parent statement
+                else if (isParentChecked == true)
+                {
+                    List<ExcelCell> cell = new List<ExcelCell>
+{
+                        new ExcelCell() { RowSpan= 2,ColSpan=6 , Value= "Parent: "+@SelectParent+"   Mobile: "+@ObParent.Mobile+"   Email: "+@ObParent.Email,Style = new ExcelStyle() { FontSize = 12, Italic= true,HAlign=Syncfusion.Blazor.Grids.ExcelHorizontalAlign.Center }  }
+                    };
+
+                    List<ExcelRow> HeaderContent = new List<ExcelRow>
+{
+                        new ExcelRow() {  Cells = cell, Index = 1 }
+                    };
+                    header.Rows = HeaderContent;
+                    ExcelProperties.Header = header;
+
+
+                    ExcelProperties.IncludeTemplateColumn = true;
+
+                    ExcelProperties.FileName = "StudentStatement.xlsx";
+                    this.ParentStatementGrid.ExportToExcelAsync(ExcelProperties);
+                }
+            }
+            else if (isFeeChecked == true)
+            {
+                if (isParentChecked == false)
+                {
+                    List<ExcelCell> cell = new List<ExcelCell>
+{
+                        new ExcelCell() { RowSpan= 2,ColSpan=6 , Value= "Student: "+@CustList+"   Class: "+@ObCustomer.Class+"   Div: "+@ObCustomer.Division,Style = new ExcelStyle() { FontSize = 12, Italic= true,HAlign=Syncfusion.Blazor.Grids.ExcelHorizontalAlign.Center }  }
+                    };
+
+                    List<ExcelRow> HeaderContent = new List<ExcelRow>
+{
+                        new ExcelRow() {  Cells = cell, Index = 1 }
+                    };
+                    header.Rows = HeaderContent;
+                    ExcelProperties.Header = header;
+
+
+                    ExcelProperties.IncludeTemplateColumn = true;
+
+                    ExcelProperties.FileName = "FeeWiseStatement.xlsx";
+                    this.gv_StudentFeeRegister.ExportToExcelAsync(ExcelProperties);
+                }
+                else if (isParentChecked == true)
+                {
+                    List<ExcelCell> cell = new List<ExcelCell>
+{
+                        new ExcelCell() { RowSpan= 2,ColSpan=6 , Value= "Parent: "+@SelectParent+"   Mobile: "+@ObParent.Mobile+"   Email: "+@ObParent.Email,Style = new ExcelStyle() { FontSize = 12, Italic= true,HAlign=Syncfusion.Blazor.Grids.ExcelHorizontalAlign.Center }  }
+                    };
+
+                    List<ExcelRow> HeaderContent = new List<ExcelRow>
+{
+                        new ExcelRow() {  Cells = cell, Index = 1 }
+                    };
+                    header.Rows = HeaderContent;
+                    ExcelProperties.Header = header;
+
+
+                    ExcelProperties.IncludeTemplateColumn = true;
+
+                    ExcelProperties.FileName = "FeeWiseStatement.xlsx";
+                    this.gv_ParentFeeRegister.ExportToExcelAsync(ExcelProperties);
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+    }
+    
+    
+    public async Task ExportPdf2()
+    {
+        try
+        {
+            if (ObCustomer != null)
+            {
+                TaxStatement = (await _ISchoolTaxInvoiceManager.GetTaxInvoiceStatement(ObCustomer.AccountCode, CurrentAccYr, StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), Convert.ToInt32(BranchID)))!.ToList();
+
+                DataSource dt = new DataSource();
+                dt.DataSet1 = new List<ExpandoObject>();
+                dt.DataSet2 = new List<ExpandoObject>();
+                dt.DataSet3 = new List<ExpandoObject>();
+                dt.DataSet4 = new List<ExpandoObject>();
+                var TaxStatementDebit = TaxStatement.Where(x => x.Debit != 0 && x.Vtype != "Tax Invoice").ToList();
+                if (TaxStatementDebit.Count > 0)
+                {
+                    TaxStatementDebit[0].DateFrom = StartDate;
+                    TaxStatementDebit[0].DateTo = EndDate;
+                }
+                else
+                {
+                    dtStudentStatement TaxStatementDebit1 = new dtStudentStatement();
+                    TaxStatementDebit1.DateFrom = StartDate;
+                    TaxStatementDebit1.DateTo = EndDate;
+                    TaxStatementDebit1.AccountName = ObCustomer.AccountName;
+                    TaxStatementDebit1.AccountCode = ObCustomer.AccountCode;
+                    TaxStatementDebit1.Class = ObCustomer.Class;
+                    TaxStatementDebit1.Division = ObCustomer.Division;
+                    TaxStatementDebit.Add(TaxStatementDebit1);
+                }
+                var TaxStatementTax = TaxStatement.Where(x => x.Vtype == "Tax Invoice").ToList();
+                var TaxStatementcredit = TaxStatement.Where(x => x.Credit != 0).ToList();
+                //DATE DESC
+                TaxStatementDebit = TaxStatementDebit.OrderByDescending(m => m.EffectiveDate).ToList();
+                TaxStatementcredit = TaxStatementcredit.OrderByDescending(m => m.EffectiveDate).ToList();
+                TaxStatementTax = TaxStatementTax.OrderByDescending(m => m.EffectiveDate).ToList();
+
+                dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(TaxStatementDebit));
+                dt.DataSet3 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(TaxStatementcredit));
+                dt.DataSet4 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(TaxStatementTax));
+                dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(CompanyDetails));
+
+                //fileName = "TaxStatementNew";
+                dt.ReportName = "TaxStatementNew";
+                dt.Con = HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token_key"));
+                dt.CompanyCode = CompanyCode;
+                if (dt.ReportName != "")
+                {
+                    var Result = await _BoldReport.GetReport(dt);
+                    var filename = dt.ReportName + ".pdf";
+                    await InvokeAsync(StateHasChanged);
+                    await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                }
+            }
+
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public async Task ExportPdf()
+    {
+        try
+        {
+            if (isFeeChecked == true)
+            {
+                if (isParentChecked == true)
+                {
+                    DataSource dt = new DataSource();
+                    dt.DataSet1 = new List<ExpandoObject>();
+                    dt.DataSet2 = new List<ExpandoObject>();
+                    dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(ParentFeeRegister));
+                    dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(CompanyDetails));
+
+                   
+                    //fileName = "ParentFeewise";
+
+                    dt.ReportName = "ParentFeewise";
+                    dt.Con = HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token_key"));
+                    dt.CompanyCode = CompanyCode;
+                    if (dt.ReportName != "")
+                    {
+                        var Result = await _BoldReport.GetReport(dt);
+                        var filename = dt.ReportName + ".pdf";
+                        await InvokeAsync(StateHasChanged);
+                        await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                    }
+                }
+                //Student feewise
+                else if (isParentChecked == false)
+                {
+                    DataSource dt = new DataSource();
+                    dt.DataSet1 = new List<ExpandoObject>();
+                    dt.DataSet2 = new List<ExpandoObject>();
+                    dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(StudFeeRegister));
+                    dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(CompanyDetails));
+
+                    
+                    dt.ReportName = "StudentFeewise";
+                    dt.Con = HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token_key"));
+                    dt.CompanyCode = CompanyCode;
+                    if (dt.ReportName != "")
+                    {
+                        var Result = await _BoldReport.GetReport(dt);
+                        var filename = dt.ReportName + ".pdf";
+                        await InvokeAsync(StateHasChanged);
+                        await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                    }
+                }
+            }
+
+            else if (isFeeChecked == false)
+            {
+                if (isParentChecked == false)
+                {
+                    DataSource dt = new DataSource();
+                    dt.DataSet1 = new List<ExpandoObject>();
+                    dt.DataSet2 = new List<ExpandoObject>();
+
+
+                    if (StudStatement.Count() > 0)
+                    {
+
+                        var PrvsBal = StudStatement.Where(x => x.Description == "Previous Balance b/f").FirstOrDefault();
+                        if (PrvsBal != null)
+                        {
+                            var notPrvsBal = StudStatement.Where(x => x.Description != "Previous Balance b/f").FirstOrDefault();
+                            if (notPrvsBal != null)
+                            {
+                                PrvsBal.AccountCode = notPrvsBal.AccountCode;
+                                PrvsBal.Class = notPrvsBal.Class;
+                                PrvsBal.Division = notPrvsBal.Division;
+                                PrvsBal.AccountName = notPrvsBal.AccountName;
+                            }
+                            else
+                            {
+                                PrvsBal.AccountCode = ObCustomer.AccountCode;
+                                PrvsBal.Class = ObCustomer.Class;
+                                PrvsBal.Division = ObCustomer.Division;
+                                PrvsBal.AccountName = ObCustomer.AccountName;
+                                PrvsBal.ParentName = ObCustomer.Parent;
+                                PrvsBal.parentCode = ObCustomer.ParentCode;
+                            }
+                        }
+                        StudStatement[0].DateFrom = StartDate;
+                        StudStatement[0].DateTo = EndDate;
+                    }
+                    dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(StudStatement));
+                    dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(CompanyDetails));
+
+                   // fileName = "StudentStatement";
+                    dt.ReportName = "StudentStatement";
+                    dt.Con = HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token_key"));
+                    dt.CompanyCode = CompanyCode;
+                    if (dt.ReportName != "")
+                    {
+                        var Result = await _BoldReport.GetReport(dt);
+                        var filename = dt.ReportName + ".pdf";
+                        await InvokeAsync(StateHasChanged);
+                        await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                    }
+                }
+                //parent statement
+                else if (isParentChecked == true)
+                {
+                    if (ParentStudStatement.Count() > 0)
+                    {
+
+                        var PrvsBal = ParentStudStatement.Where(x => x.Description == "Previous Balance b/f").FirstOrDefault();
+                        if (PrvsBal != null)
+                        {
+                            var notPrvsBal = ParentStudStatement.Where(x => x.Description != "Previous Balance b/f").FirstOrDefault();
+                            if (notPrvsBal != null)
+                            {
+                                PrvsBal.AccountCode = notPrvsBal.AccountCode;
+                                PrvsBal.Class = notPrvsBal.Class;
+                                PrvsBal.Division = notPrvsBal.Division;
+                                PrvsBal.AccountName = notPrvsBal.AccountName;
+                                PrvsBal.ParentName = notPrvsBal.ParentName;
+                                PrvsBal.parentCode = notPrvsBal.parentCode;
+                            }
+                            else
+                            {
+                                PrvsBal.AccountCode = ObCustomer.AccountCode;
+                                PrvsBal.Class = ObCustomer.Class;
+                                PrvsBal.Division = ObCustomer.Division;
+                                PrvsBal.AccountName = ObCustomer.AccountName;
+                                PrvsBal.ParentName = ObCustomer.Parent;
+                                PrvsBal.parentCode = ObCustomer.ParentCode;
+                            }
+                        }
+                        ParentStudStatement[0].DateFrom = StartDate;
+                        ParentStudStatement[0].DateTo = EndDate;
+                    }
+                    DataSource dt = new DataSource();
+                    dt.DataSet1 = new List<ExpandoObject>();
+                    dt.DataSet2 = new List<ExpandoObject>();
+                    dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(ParentStudStatement));
+                    dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(CompanyDetails));
+                    //fileName = "ParentStatement";
+                    dt.ReportName = "ParentStatement";
+                    dt.Con = HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token_key"));
+                    dt.CompanyCode = CompanyCode;
+                    if (dt.ReportName != "")
+                    {
+                        var Result = await _BoldReport.GetReport(dt);
+                        var filename = dt.ReportName + ".pdf";
+                        await InvokeAsync(StateHasChanged);
+                        await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                    }
+                }
+
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+
+    }
+    public async Task Go_Click()
+    {
+        if (isFeeChecked == true)//feewise
+        {
+            if (isParentChecked == true)
+            {
+                // ParentFeeRegister = ParentFeeRegister.Where(x => x.Date >= StartDate.Value.Date && x.Date <= EndDate.Value.Date).ToList();
+                ParentFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Parent", Convert.ToInt32(ObParent.ParentID), StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), "Studying")).ToList();
+            }
+            else
+            {
+                StudFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Student", Convert.ToInt32(ObCustomer.ID), StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), "Studying")).ToList();
+            }
+        }
+        else//statement
+        {
+            if (isParentChecked == true)
+            {
+                ParentStudStatement.Clear();
+
+                ParentStudStatement = (await StudentMasterService.GetStatement(StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), Convert.ToInt32(ObParent.ParentID), BranchID)).ToList();
+                ParentStudStatement = ParentStudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+
+                await ParentCalculateBalance();
+
+            }
+            else
+            {
+                StudStatement = (await StudentMasterService.GetStatement(StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), Convert.ToInt32(ObCustomer.ID), BranchID)).ToList();
+                StudStatement = StudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+                await CalculateBalance();
+            }
+
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    //others
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+            info = JsonConvert.DeserializeObject<DtoLoginModel>(param);
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex.Message);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+    public async Task RefreshGrids()
+    {
+        if (ObCustomer != null)
+        {
+            if (ObCustomer.ID != 0)
+            {
+                StudFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Student", Convert.ToInt32(ObCustomer.ID), StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), "Studying")).ToList();
+                if (gv_StudentFeeRegister != null)
+                    await gv_StudentFeeRegister.Refresh();
+                //student Statement
+                StudStatement = (await StudentMasterService.GetStatement(StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), Convert.ToInt32(ObCustomer.ID), BranchID)).ToList();
+                StudStatement = StudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+                await CalculateBalance();
+
+                if (StatementGrid != null)
+                    await StatementGrid.Refresh();
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        if (ObParent != null)
+        {
+            if (ObParent.ParentID != 0)
+            {
+                //parent statement
+                ParentStudStatement = (await StudentMasterService.GetStatement(StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), Convert.ToInt32(ObParent.ParentID), BranchID)).ToList();
+                ParentStudStatement = ParentStudStatement.OrderBy(m => m.EffectiveDate).ThenByDescending(n => n.Debit).ThenByDescending(x => x.Credit).ToList();
+                await ParentCalculateBalance();
+                ParentFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Parent", Convert.ToInt32(ObParent.ParentID), StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), "Studying")).ToList();
+                if (ParentStatementGrid != null)
+                    await ParentStatementGrid.Refresh();
+                if (gv_ParentFeeRegister != null)
+                    await gv_ParentFeeRegister.Refresh();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+    public void ExcelAggregateTemplateInfoHandler(ExcelAggregateEventArgs args)
+    {
+        if (args.Column.Field == "Balance")
+        {
+            args.Cell.Value = GetBalanceAggregate();       //customize the aggregate cell value here
+        }
+    }
+
+    public void ParentExcelAggregateTemplateInfoHandler(ExcelAggregateEventArgs args)
+    {
+        if (args.Column.Field == "Balance")
+        {
+            args.Cell.Value = GetParentBalanceAggregate();       //customize the aggregate cell value here
+        }
+    }
+    public async void ClosedHandler(CloseEventArgs args)
+    {
+        // Here, you can customize your code.
+        StudVouchrAlloc.Clear();
+        Headchecked = false;
+        allo = 0;
+        unalloting = 0;
+    }
+     public async Task Voucher_click(int Vid, decimal Credit, string Vno,int Veid)
+    {
+        stuVeid= Veid;
+        oldlist.Clear();
+        if (Credit != 0.000000M)
+        {
+            Credits = Credit;
+            vno = Vno;
+            // unalloting = Credits - Convert.ToDecimal(sumagg);
+            VID = Convert.ToString(Vid);
+            VIDE = Vid;
+            Vi = Vid;
+
+            AccountID = ObCustomer.ID;
+            this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Vid, Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+
+            //foreach(var item in  StudVouchrAlloc)
+            //{
+
+            //    item.ID = i;
+            //    i=i+1;
+            //}
+
+            oldlist = StudVouchrAlloc.Where(a => a.Sel == 1).ToList();
+            var allocated = oldlist.Sum(x => x.Receipt);
+            //ChangeAdded
+            unalloting = Credits - allocated;
+            allogrids = oldlist;
+            allo = StudVouchrAlloc.Sum(X => X.Receipt);
+            unalloting = Credits - allo;
+            VoucherMatching = false;
+            VoucherMatch = true;
+        }
+        else
+        {
+            IsOpenDangers = true;
+            Faileds = "Failed to Access";
+            VoucherMatching = false;
+
+
+        }
+
+        await InvokeAsync(StateHasChanged);
+
+    }
+      public async Task GetSelectedRecords_Posting(RowSelectingEventArgs<dtStudentStatement> args)
+
+    {
+
+
+        allo = StudVouchrAlloc.Sum(X => X.Receipt);
+        unalloting = Credits - allo;
+
+        if (args.IsHeaderCheckboxClicked && Headchecked == false)
+        {
+            Headchecked = true;
+            args.Cancel = true;
+            //Head = false;
+            await StudVouchAlloc.ClearRowSelectionAsync();
+            await StudVouchAlloc.SelectRowsByRangeAsync(0, StudVouchrAlloc.Count() - 1);
+
+
+        }//end
+        if (!args.IsHeaderCheckboxClicked)
+        {
+            Headchecked = false;
+            Head = false;
+        }//end
+
+
+        if (args.Data.Balance > 0)
+        {
+            //Changes Added
+            if (Credits - allo <= 0 && args.Data.Receipt == 0.000000M)
+                args.Cancel = true; //enable this to prevent the row selection
+
+        }//end
+
+
+        if (args.IsHeaderCheckboxClicked)
+        {
+            //    var selectedKey = args.Data;
+
+            //    if (unalloting < selectedKey.Balance &&  args.Data.Receipt != Credits && Credits!=allo)
+            //    {
+            //        if (Credits != allo)
+            //        {
+            //            args.Data.Receipt = Credits - allo;
+            //            args.Data.Balance = selectedKey.Balance - (Credits - allo);
+            //            //Creditstotal = args.Data.Receipt;
+            //            allo = allo + args.Data.Receipt;
+            //            unalloting = Credits - allo;
+            //            Head = true;
+            //            await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+            //            await InvokeAsync(StateHasChanged);
+            //            savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+            //            //if (args.Data.Receipt > Credits)
+            //            //{
+            //            //    args.Cancel = true;
+            //            //}
+            //        }
+            //    }
+            //    //Change Added
+            //    if (selectedKey.Balance == 0)
+            //    {
+            //        args.Cancel = true;
+
+            //    }
+
+            if (Credits - allo <= 0 && args.Data.Receipt == 0.000000M)
+                args.Cancel = true;
+            else
+            {
+                var selectedKey = args.Data;
+
+
+                if (Credits == selectedKey.Balance && args.Data.Receipt == 0.000000M && Credits != allo)//Balance and credit equal
+                {
+
+                    args.Data.Receipt = args.Data.Balance;
+                    args.Data.Balance = 0;
+                    //Creditstotal = args.Data.Receipt;
+                    allo = allo + args.Data.Receipt;
+                    unalloting = Credits - allo;
+                    //await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                    await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+
+                    await InvokeAsync(StateHasChanged);
+                    savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+
+
+
+                }//end
+
+                else if (unalloting >= selectedKey.Balance && allo != Credits && args.Data.Receipt == 0)
+                {
+                    //if (selectedKey.Balance <= 0)
+                    //{
+                    //    args.Data.Receipt = selectedKey.Balance;
+                    //    args.Data.Balance = 0;
+                    //    //Creditstotal = args.Data.Receipt;
+                    //    allo = allo + args.Data.Receipt;
+                    //    // unalloting = Credits - allo + s;
+                    //    unalloting = Credits - allo;
+                    //    await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                    //    await InvokeAsync(StateHasChanged);
+
+                    //}
+                    if (selectedKey.Balance > 0 && allo != Credits)
+                    {
+                        args.Data.Receipt = selectedKey.Balance;
+                        args.Data.Balance = 0;
+                        Creditstotal = args.Data.Receipt;
+                        allo = allo + args.Data.Receipt;
+                        // unalloting = Credits - allo + s;
+                        unalloting = Credits - allo;
+                        // await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                        await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+
+                        await InvokeAsync(StateHasChanged);
+                        savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+                    }
+
+                }
+                else if (unalloting < selectedKey.Balance && args.Data.Receipt == 0.000000M && Credits != allo)
+                {
+
+                    args.Data.Receipt = Credits - allo;
+                    args.Data.Balance = selectedKey.Balance - (Credits - allo);
+                    // Creditstotal = args.Data.Receipt;
+                    allo = allo + args.Data.Receipt;
+                    unalloting = Credits - allo;
+                    savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+                    //await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                    await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+
+                    await InvokeAsync(StateHasChanged);
+                    savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+
+                    //else
+                    //{
+                    //    args.Cancel = true;
+                    //}
+                }
+                //else if (selectedKey.Balance < 0)
+                //{
+                //    args.Data.Receipt = selectedKey.Balance;
+                //    args.Data.Balance = 0;
+                //    //Creditstotal = args.Data.Receipt;
+                //    allo = allo + args.Data.Receipt;
+                //    // unalloting = Credits - allo + s;
+                //    unalloting = Credits - allo;
+                //    await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                //    await InvokeAsync(StateHasChanged);
+
+                //}
+
+                ////if (allo == Credits && Headchecked == true)
+                ////{
+                ////    args.Cancel = true;
+                ////}
+            }
+        }
+
+        if (args.Event != null && Head == false)
+        {
+            var selectedKey = args.Data;
+
+            if (Credits == selectedKey.Balance && args.Data.Receipt == 0.000000M && Credits != allo)//Balance and credit equal
+            {
+                args.Data.Receipt = args.Data.Balance;
+                args.Data.Balance = 0;
+                //Creditstotal = args.Data.Receipt;
+                allo = allo + args.Data.Receipt;
+                unalloting = Credits - allo;
+                await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+                await InvokeAsync(StateHasChanged);
+                savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+            }//end
+
+            else if (unalloting >= selectedKey.Balance && allo != Credits && args.Data.Receipt == 0)
+            {
+                if (selectedKey.Balance <= 0)
+                {
+                    args.Data.Receipt = selectedKey.Balance;
+                    args.Data.Balance = 0;
+                    //Creditstotal = args.Data.Receipt;
+                    allo = allo + args.Data.Receipt;
+                    // unalloting = Credits - allo + s;
+                    unalloting = Credits - allo;
+                    // await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                    await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+
+                    await InvokeAsync(StateHasChanged);
+
+                }
+                else if (selectedKey.Balance > 0 && allo != Credits)
+                {
+                    args.Data.Receipt = selectedKey.Balance;
+                    args.Data.Balance = 0;
+                    Creditstotal = args.Data.Receipt;
+                    allo = allo + args.Data.Receipt;
+                    // unalloting = Credits - allo + s;
+                    unalloting = Credits - allo;
+                    // await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                    await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+                    //StudVouchAlloc.RefreshColumnsAsync();
+                    //if (StudVouchAlloc != null)
+                    //    StudVouchAlloc.Refresh();
+                    await InvokeAsync(StateHasChanged);
+                    savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+                }
+
+            }
+            else if (unalloting < selectedKey.Balance && args.Data.Receipt == 0.000000M && Credits != allo)
+            {
+                args.Data.Receipt = Credits - allo;
+                args.Data.Balance = selectedKey.Balance - (Credits - allo);
+                // Creditstotal = args.Data.Receipt;
+                allo = allo + args.Data.Receipt;
+                unalloting = Credits - allo;
+                savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+                //await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+
+                await InvokeAsync(StateHasChanged);
+                savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+
+                //else
+                //{
+                //    args.Cancel = true;
+                //}
+            }
+            else if (selectedKey.Balance < 0)
+            {
+                args.Data.Receipt = selectedKey.Balance;
+                args.Data.Balance = 0;
+                //Creditstotal = args.Data.Receipt;
+                allo = allo + args.Data.Receipt;
+                // unalloting = Credits - allo + s;
+                unalloting = Credits - allo;
+                //await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+                await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+
+                await InvokeAsync(StateHasChanged);
+
+            }
+
+            //if (allo == Credits && Headchecked == true)
+            //{
+            //    args.Cancel = true;
+            //}
+
+        }
+        allo = StudVouchrAlloc.Sum(X => X.Receipt);
+        unalloting = Credits - allo;
+
+        await InvokeAsync(StateHasChanged);
+    }
+     public async Task Cancelmtchs_Click()
+    {
+        VoucherMatch = false;
+        VoucherMatching = false;
+    }
+    public async Task allocateall()
+    {
+        await _IVoucherAllocationManagers.Autoallo(Dateauto.ToString("MM/dd/yyyy"), ObCustomer.ID,  Convert.ToInt32(BranchID));
+        VoucherMatching = false;
+        VoucherMatch = false;
+        auto = false;
+        autoalls = true;
+    }
+    public async Task DeleteAll_Click()
+    {
+        Deleteall = true;
+    }
+     public async Task NoAllocationAlert(int Vid, decimal Debit)
+    {
+        oldlist.Clear();
+        // if (Debit != 0.000000M)
+        {
+            Credits = Debit;
+            VID = Convert.ToString(Vid);
+            VIDE = Vid;
+
+            AccountID = ObCustomer.ID;
+            this.allogrid = (await _IVoucherAllocationManagers.Getallo(Vid, Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+
+
+
+            VoucherMatchings = true;
+        }
+        //else
+        //{
+        //    IsOpenDangers = true;
+        //    Faileds = "Failed to Access";
+        //    VoucherMatchings = false;
+
+
+        //}
+
+        await InvokeAsync(StateHasChanged);
+    }
+     public async void CreatedHandler(object args)
+    {
+        // Here, you can customize your code.
+        SelectedNodeIndex.Clear();
+        sumallo = 0;
+        var index = 0;
+        foreach (var data in StudVouchrAlloc)
+        {
+            //sumallo = sumallo + data.Receipt;
+
+            if (data.Sel == 1)
+            {
+                SelectedNodeIndex.Add(index);
+
+
+            }
+
+            index++;
+
+
+        }
+        await this.StudVouchAlloc.SelectRowsAsync(SelectedNodeIndex.ToArray());
+
+    }
+     public int stuVeid;
+    public int i=1;
+    public async Task NoAllocationAlerts()
+    {
+        PopupDeVisibletrue = true;
+    }
+
+     public async Task Delete_Click(int reciptvid, int billvid)
+    {
+        bool confirmed = await Runtime.InvokeAsync<bool>("confirm", "Are you sure? you want to delete Allocation");
+        if (confirmed)
+        {
+            HttpResponseMessage response = await StudentService.DeleteVoucher(reciptvid, billvid);
+
+            if (response.IsSuccessStatusCode)
+            {
+                this.allogrid = (await _IVoucherAllocationManagers.Getallo(Convert.ToInt32(VID), Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+                this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Vi, Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+                await RefreshGrids();
+                IsOpen = true;
+                Success = "Deleted Successfully";
+                await this.InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+        public async Task save_ClickS()
+    {
+        savelist = await this.StudVouchAlloc.GetSelectedRecordsAsync();
+        var finalalloc = savelist.Sum(x => x.Receipt);
+        if (finalalloc <= Credits)
+        {
+            if (savelist.Count() > 0)
+            {
+                foreach (var item in oldlist)
+                {
+                    var itm = savelist.Where(x => x.Veid == item.Veid).FirstOrDefault();
+                    if (itm == null)
+                    {
+                        var response = await _IVoucherAllocationManagers.Delete(Convert.ToInt32(item.ID));
+                        if (response == false)
+                            saveError = true;
+                    }
+                }
+
+                foreach (var SA in savelist)
+                {
+                    var update = oldlist.Where(x => x.Veid == SA.Veid).FirstOrDefault();
+
+                    if (Credits >= allo && SA.Receipt != 0.0000M)
+                    {
+                        if (update == null)
+                        {
+                            dtStudentStatement MM = new dtStudentStatement();
+                            MM.Vid = VIDE;
+                            MM.Veid = SA.Veid;
+                            MM.VVEID = stuVeid;
+                            MM.AccountId = AccountID;
+                            MM.Amount = SA.Receipt;
+
+                            HttpResponseMessage response = await _IVoucherAllocationManagers.Savestatement(MM);
+                            if (response.IsSuccessStatusCode)
+
+                                IsOpen = true;
+                            Success = "Added Successfully";
+                            //VoucherMatching = false;
+                            //VoucherMatch = true;
+
+                            if (response.IsSuccessStatusCode != true)
+                                IsOpenDangers = true;
+
+                            Faileds = "Failed";
+                            //VoucherMatching = true;
+                            //VoucherMatch = false;
+
+                        }
+                        else
+                        {
+                            dtStudentStatement MMM = new dtStudentStatement();
+                            MMM.Vid = VIDE;
+
+                            MMM.Veid = SA.Veid;
+                            MMM.VVEID = stuVeid;
+                            MMM.ID= SA.ID;
+                            MMM.AccountId = AccountID;
+                            MMM.Amount = SA.Receipt;
+
+                            HttpResponseMessage response = await _IVoucherAllocationManagers.Updatestatement(MMM);
+                            StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+                            if (response.IsSuccessStatusCode)
+
+                                IsOpen = true;
+                            Success = "Added Successfully";
+                            //VoucherMatching = false;
+                            //VoucherMatch = true;
+                            if (response.IsSuccessStatusCode != true)
+                                IsOpenDangers = true;
+
+                            Faileds = "Failed";
+                            //VoucherMatching = true;
+                            //VoucherMatch = false;
+
+                        }
+                    }
+                    else
+                    {
+                        StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+                    }
+                }
+            }
+            else
+            {
+                if (oldlist.Count() > 0)
+                {
+                    foreach (var item in oldlist)
+                    {
+                        var response = await _IVoucherAllocationManagers.Delete(Convert.ToInt32(item.ID));
+                        if (response != true)
+                            IsOpenDangers = true;
+
+                        Faileds = "Failed";
+                        //VoucherMatching = true;
+                        //VoucherMatch = false;
+                        // if (response = true)
+                        //    VoucherMatching = false;
+                        //VoucherMatch = true;
+                    }
+                }
+            }
+
+            oldlist.Clear();
+
+            StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+            oldlist = StudVouchrAlloc.Where(a => a.Sel == 1).ToList();
+            SelectedNodeIndex.Clear();
+            allo = oldlist.Sum(x => x.Receipt);
+            unalloting = Credits - allo;
+
+            foreach (var data in StudVouchrAlloc)
+            {
+                if (data.Sel == 1)
+                {
+                    var index = await StudVouchAlloc.GetRowIndexByPrimaryKeyAsync(data.Veid);
+                    SelectedNodeIndex.Add(index);
+                }
+            }
+            await this.StudVouchAlloc.SelectRowsAsync(SelectedNodeIndex.ToArray());
+            this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Vi, Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+
+            SelectedNodeIndex.Clear();
+            sumallo = 0;
+            var indexs = 0;
+            oldlist = StudVouchrAlloc.Where(a => a.Sel == 1).ToList();
+
+            allogrids = oldlist;
+            foreach (var data in StudVouchrAlloc)
+            {
+                //sumallo = sumallo + data.Receipt;
+
+                if (data.Sel == 1)
+                {
+                    SelectedNodeIndex.Add(indexs);
+                }
+                indexs++;
+            }
+            oldlist = StudVouchrAlloc.Where(a => a.Sel == 1).ToList();
+            var allocated = oldlist.Sum(x => x.Receipt);
+            //ChangeAdded
+            unalloting = Credits - allocated;
+            if (StudVouchrAlloc != null)
+            {
+                await StudVouchAlloc.SelectRowsAsync(SelectedNodeIndex.ToArray());
+
+                VoucherMatching = true;
+                VoucherMatch = false;
+            }
+            if (StudVouchrAlloc == null)
+            {
+                VoucherMatching = true;
+                VoucherMatch = false;
+            }
+            //  this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Vi, AccountID, BranchID)).ToList();
+            await RefreshGrids();
+        }
+        else
+        {
+        }
+    }
+
+     public async void CreatedHandlers(object args)
+    {
+        // Here, you can customize your code.
+        SelectedNodeIndex.Clear();
+        sumallo = 0;
+        var index = 0;
+        foreach (var data in allogrids)
+        {
+            //sumallo = sumallo + data.Receipt;
+
+            //if (data.Sel == 1)
+            {
+                SelectedNodeIndex.Add(index);
+
+
+            }
+
+            index++;
+
+
+        }
+        await allogridss.SelectRowsAsync(SelectedNodeIndex.ToArray());
+
+    }
+
+
+     public async Task autoall()
+    {
+        auto = true;
+    }
+     public async Task Edit_Clickallo()
+    {
+        //oldlist.Clear();
+        //if (Credits != 0.000000M)
+        //{
+
+        //    // unalloting = Credits - Convert.ToDecimal(sumagg);
+        //    VID = Convert.ToString(Vid);
+        //    VIDE = Vid;
+
+        //    AccountID = ObCustomer.ID;
+        //    this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), AccountID, BranchID)).ToList();
+
+        //    oldlist = StudVouchrAlloc.Where(a => a.Sel == 1).ToList();
+        //    var allocated = oldlist.Sum(x => x.Receipt);
+        //    //ChangeAdded
+        //    unalloting = Credits - allocated;
+        //    allogrids = oldlist;
+
+        //}
+
+        ////ChangeAdded
+        ///
+        ///
+        ///
+        ///
+        ///
+
+        this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Vi, Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+        oldlist.Clear();
+        if (Credits != 0.000000M)
+        {
+            // unalloting = Credits - Convert.ToDecimal(sumagg);
+            VID = Convert.ToString(Vi);
+            VIDE = Vi;
+
+            AccountID = ObCustomer.ID;
+            this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Vi, Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+
+            oldlist = StudVouchrAlloc.Where(a => a.Sel == 1).ToList();
+            var allocated = oldlist.Sum(x => x.Receipt);
+            //ChangeAdded
+            unalloting = Credits - allocated;
+            allogrids = oldlist;
+            VoucherMatching = true;
+            VoucherMatch = false;
+        }
+        StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+        SelectedNodeIndex.Clear();
+        sumallo = 0;
+        var index = 0;
+        foreach (var data in StudVouchrAlloc)
+        {
+            //sumallo = sumallo + data.Receipt;
+            if (data.Sel == 1)
+            {
+                SelectedNodeIndex.Add(index);
+
+
+            }
+            index++;
+        }
+        await this.StudVouchAlloc.SelectRowsAsync(SelectedNodeIndex.ToArray());
+    }
+
+    public async Task DeselectRecords(RowDeselectEventArgs<dtStudentStatement> args)
+    {
+        Headchecked = false;
+        if (args.IsHeaderCheckboxClicked)
+        {
+            if (args.Event != null)
+            {
+                allo = 0;
+                unalloting = Credits;
+                //StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Convert.ToInt32(VIDE), AccountID, BranchID)).ToList();
+
+                var SelectedRecords = (await StudVouchAlloc.GetSelectedRecordsAsync()).ToList();
+                foreach (var itm in SelectedRecords)
+                {
+                    var Drec = itm.Receipt;
+                    StudVouchrAlloc.Where(b => b.Veid == itm.Veid).ToList().ForEach(a => { a.Balance = itm.Receipt + itm.Balance; a.Receipt = Drec - Drec; });
+                }
+
+               //args.Event = null;
+
+                //await StudVouchAlloc.ClearRowSelectionAsync();
+
+                await StudVouchAlloc.Refresh();
+            }
+        }
+        else if (args.Event != null && Head == false)
+        {
+            Vids = args.Data.ID;
+            int _vid = Convert.ToInt32(Vids);
+            allo = allo - args.Data.Receipt;
+            unalloting = Credits - allo;
+            args.Data.Balance = args.Data.Balance + args.Data.Receipt;
+            args.Data.Receipt = 0;
+            //await StudVouchAlloc.SetRowDataAsync(args.Data.Vid, args.Data);
+            await StudVouchAlloc.SetRowDataAsync(args.Data.Veid, args.Data);
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    
+        public async Task deletetheallocation()
+    {
+        bool confirmed = await Runtime.InvokeAsync<bool>("confirm", "Are you sure? you want to delete Allocation");
+        if (confirmed)
+        {
+            AccountID = ObCustomer.ID;
+
+            HttpResponseMessage response = await StudentService.DeleteAllVoucherallocation(Convert.ToInt32(AccountID), Dates.ToString("MM/dd/yyyy"));
+            Deleteall = false;
+
+            if (response.IsSuccessStatusCode)
+            {
+                this.StudVouchrAlloc = (await _IVoucherAllocationManagers.GetStatements(Vi, Convert.ToInt32(AccountID), Convert.ToInt32(BranchID))).ToList();
+
+                StudFeeRegister = (await StudentService.GetParentStudentFeeWise(CurrentAccYr, Convert.ToInt32(BranchID), "Student", Convert.ToInt32(ObCustomer.ID), StartDate.Value.Date.ToString("MM/dd/yyyy"), EndDate.Value.Date.ToString("MM/dd/yyyy"), "Studying")).ToList();
+
+                IsOpen = true;
+                Success = "Deleted Successfully";
+                await this.InvokeAsync(StateHasChanged);
+                VoucherMatching = false;
+                VoucherMatch = true;
+                SelectedNodeIndex.Clear();
+                sumallo = 0;
+                var indexs = 0;
+                oldlist = StudVouchrAlloc.Where(a => a.Sel == 1).ToList();
+
+                allogrids = oldlist;
+                foreach (var data in allogrids)
+                {
+                    //sumallo = sumallo + data.Receipt;
+
+                    if (data.Sel == 1)
+                    {
+                        SelectedNodeIndex.Add(indexs);
+                    }
+                    indexs++;
+                }
+                await this.allogridss.SelectRowsAsync(SelectedNodeIndex.ToArray());
+                await RefreshGrids();
+            }
+        }
+    }
+
+}

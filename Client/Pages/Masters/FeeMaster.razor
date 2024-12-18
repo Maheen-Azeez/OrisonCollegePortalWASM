@@ -1,0 +1,1047 @@
+﻿@page "/FeeMaster"
+@using Newtonsoft.Json;
+@using OrisonCollegePortal.Client.Services;
+@using OrisonCollegePortal.Shared.Entities;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Data;
+@using Microsoft.Extensions.Localization
+@using System.Net.Http.Json
+@using System.Web;
+
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager StudentService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentMaster StudentMasterService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IFeeMaster FeeMasterService
+@inject OrisonCollegePortal.Client.Services.UserRightsService _UserRights
+@inject IJSRuntime JsRuntime;
+@inject HttpClient Http
+@inject ToastService ToastService
+@using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+@if (AllowOpen == true)
+{
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-9">
+                <SfButton @onclick="@New_Click" Content="@Localizer[ButtonLabel]" IconCss="Icon add" CssClass="e-btn" Disabled="@btnAddenable" />
+                <SfButton @onclick="@Save_Click" Content=@Localizer["Save"] IconCss="Icon save" CssClass="e-btn" Disabled="@btnSaveenable" />
+                <SfButton @onclick="@Edit_Click" IconCss="Icon edit" CssClass="e-btn" Content=@Localizer[EditButtonLabel] Disabled="@btnEditenable" />
+                <SfButton @onclick="@Delete_Click" IconCss="Icon delete" CssClass="e-btn" Content=@Localizer["Delete"] Disabled="@btnDeleteenable" />
+
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen" AutoHide="true" AutoHideDelay="10000">
+                    @Success
+                </BlazorStrap.BSAlert>
+                <BlazorStrap.BSAlert Color="BlazorStrap.Color.Danger" @bind-IsOpen="@IsOpenDanger" AutoHide="true" AutoHideDelay="10000">
+                    @Failed
+                </BlazorStrap.BSAlert>
+            </div>
+            <div class="col-md-3">
+                <div class="header-div-style">
+                    <label class="header-label">@Localizer["FEE  MASTER"]</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-md-4">
+                <label class="label">@Localizer["Code"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DTFeeMaster.Code" Enabled="ECode"></SfTextBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Description"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DTFeeMaster.Description" Enabled="EDescription"></SfTextBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Academic Year"]</label>
+                <SfComboBox TValue="string" TItem="SchoolAcademicYear" Placeholder="" @bind-Value="@DTFeeMaster.AcademicYear" DataSource="@CmbYear" Enabled="EAcademicYear">
+                    <ComboBoxFieldSettings Text="AcademicYear" Value="AcademicYear"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <label class="label">@Localizer["Due Date"]</label>
+                <SfDatePicker TValue="DateTime?" ShowClearButton="true" @bind-Value="@DTFeeMaster.DueDate" Format="dd/MM/yyyy" Enabled="EDueDate">
+                </SfDatePicker>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Category"]</label>
+                <SfComboBox TValue="string" TItem="MastDesignation" @bind-Value="@DTFeeMaster.Category" DataSource="@FeeCategory" Enabled="ECategory">
+                    <ComboBoxFieldSettings Text="Description" Value="Description"></ComboBoxFieldSettings>
+                </SfComboBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["Priority No"]</label>
+                <SfNumericTextBox CssClass="textbox" @bind-Value="@DTFeeMaster.PriorityNo" Enabled="EPriorityNo"></SfNumericTextBox>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <label class="label">@Localizer["Post To"]</label>
+                <div class="w-100" style="display: flex;">
+                    <SfTextBox @bind-Value="@DTFeeMaster.AccountCode" CssClass="textbox" Width="20%" Enabled="false"></SfTextBox>
+                    <SfComboBox TValue="string" TItem="Accounts" @bind-Value="@DTFeeMaster.AccountName" DataSource="@PostTo" @ref="SfPostToObj" CssClass="e-multi-column"
+                                AllowFiltering="true" PopupHeight="200" PopupWidth="600"
+                                EnableVirtualization="true" AllowCustom="true" Enabled="EPostTo">
+                        <ComboBoxTemplates TItem="Accounts">
+                            <HeaderTemplate>
+                                @*<table class="comboTable"><tr><th>Code</th><th>Name</th><th>ID</th><th>AccCategory</th></tr></table>*@
+                                <div class="row">
+                                    <div class="col-md-3 " style="width:100px">@Localizer["Code"]</div>
+                                    <div class="col-md-4 " style="width:450px">@Localizer["Name"]</div>
+                                    <div class="col-md-2 " style="width:450px">@Localizer["ID"]</div>
+                                    <div class="col-md-3 " style="width:180px">@Localizer["AccCategory"]</div>
+                                </div>
+                            </HeaderTemplate>
+                            <ItemTemplate Context="FeeMasterContext">
+                                @*<table class="comboTable"><tbody><tr><td>@((FeeMasterContext as Accounts).AccountCode)</td><td>@((FeeMasterContext as Accounts).AccountName)</td><td>@((FeeMasterContext as Accounts).Id)</td><td>@((FeeMasterContext as Accounts).AccCategory)</td></tr> </tbody></table>*@
+                                <div class="row">
+                                    <div class="col-md-3 column-header" style="width:100px">@((FeeMasterContext as Accounts).AccountCode)</div>
+                                    <div class="col-md-4 column-header" style="width:450px">
+                                        <div class="item-name-wrapper" title="@((FeeMasterContext as Accounts).AccountName)">@((FeeMasterContext as Accounts).AccountName)</div>
+                                    </div>
+                                    <div class="col-md-2 column-header" style="width:180px">
+                                        @((FeeMasterContext as Accounts).Id)
+                                    </div>
+                                    <div class="col-md-3 column-header" style="width:180px">
+                                        @((FeeMasterContext as Accounts).AccCategory)
+                                    </div>
+                                </div>
+                            </ItemTemplate>
+                        </ComboBoxTemplates>
+                        <ComboBoxFieldSettings Text="AccountCode" Value="AccountCode"></ComboBoxFieldSettings>
+                        <ComboBoxFieldSettings Text="AccountName" Value="AccountName"></ComboBoxFieldSettings>
+                        <ComboBoxEvents TValue="string" TItem="Accounts" ValueChange="@SelectedNameChanged" Filtering="@OnPostToFiltering"></ComboBoxEvents>
+                    </SfComboBox>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="label">@Localizer["Discount"]</label>
+                <div class="w-100" style="display: flex;">
+                    <SfTextBox @bind-Value="@DTFeeMaster.DiscountAccountCode" CssClass="textbox" Width="20%" Enabled="false"></SfTextBox>
+                    <SfComboBox TValue="string" TItem="Accounts" @bind-Value="@DTFeeMaster.DiscountAccountName" DataSource="@Discount" @ref="SfDiscountObj" CssClass="e-multi-column"
+                                AllowFiltering="true" PopupHeight="200" PopupWidth="600"
+                                EnableVirtualization="true" AllowCustom="false" Enabled="EDiscount">
+                        <ComboBoxTemplates TItem="Accounts">
+                            <HeaderTemplate>
+                                @*<table class="comboTable"><tr><th>Code</th><th>Name</th><th>ID</th><th>AccCategory</th></tr></table>*@
+                                <div class="row">
+                                    <div class="col-md-3 " style="width:100px">@Localizer["Code"]</div>
+                                    <div class="col-md-4 " style="width:450px">@Localizer["Name"]</div>
+                                    <div class="col-md-2 " style="width:450px">@Localizer["ID"]</div>
+                                    <div class="col-md-3 " style="width:180px">@Localizer["AccCategory"]</div>
+                                </div>
+                            </HeaderTemplate>
+                            <ItemTemplate Context="FeeMasterContext">
+                                @*<table class="comboTable"><tbody><tr><td>@((FeeMasterContext as Accounts).AccountCode)</td><td>@((FeeMasterContext as Accounts).AccountName)</td><td>@((FeeMasterContext as Accounts).Id)</td><td>@((FeeMasterContext as Accounts).AccCategory)</td></tr> </tbody></table>*@
+                                <div class="row">
+                                    <div class="col-md-3 column-header" style="width:100px">@((FeeMasterContext as Accounts).AccountCode)</div>
+                                    <div class="col-md-4 column-header" style="width:450px">
+                                        <div class="item-name-wrapper" title="@((FeeMasterContext as Accounts).AccountName)">@((FeeMasterContext as Accounts).AccountName)</div>
+                                    </div>
+                                    <div class="col-md-2 column-header" style="width:180px">
+                                        @((FeeMasterContext as Accounts).Id)
+                                    </div>
+                                    <div class="col-md-3 column-header" style="width:180px">
+                                        @((FeeMasterContext as Accounts).AccCategory)
+                                    </div>
+                                </div>
+                            </ItemTemplate>
+                        </ComboBoxTemplates>
+                        <ComboBoxFieldSettings Text="AccountCode" Value="AccountCode"></ComboBoxFieldSettings>
+                        <ComboBoxFieldSettings Text="AccountName" Value="AccountName"></ComboBoxFieldSettings>
+                        <ComboBoxEvents TValue="string" TItem="Accounts" ValueChange="@SelectedDiscountChanged" Filtering="@OnDiscountFiltering"></ComboBoxEvents>
+                    </SfComboBox>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            @*<div class="col-md-4">
+        <label class="label">Receipt</label>
+        <SfComboBox TValue="string" TItem="VtypeTrans" @bind-Value="@DTFeeMaster.ReceiptType" DataSource="@Receipt">
+        <ComboBoxFieldSettings Text="Title" Value="Title"></ComboBoxFieldSettings>
+        </SfComboBox>
+        </div>*@
+            <div class="col-md-4">
+                <label class="label">@Localizer["Tax Code"]</label>
+                <SfComboBox DataSource="@TaxCode" TValue="string" TItem="string" @bind-Value="@DTFeeMaster.Taxcode" Enabled="ETaxcode"></SfComboBox>
+
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["VAT %"]</label>
+                <SfTextBox CssClass="textbox" @bind-Value="@DTFeeMaster.VatPercent" Enabled="EVatPercent"></SfTextBox>
+            </div>
+            <div class="col-md-4">
+                <label class="label">@Localizer["End Date"]</label>
+                <SfDatePicker TValue="DateTime?" ShowClearButton="true" @bind-Value="@DTFeeMaster.EndDate" Format="dd/MM/yyyy" Enabled="EEndDate">
+                </SfDatePicker>
+            </div>
+        </div>
+        <div class="row" style="padding-top:15px">
+            <div class="col-md-3">
+                <SfCheckBox @bind-Checked="@DTFeeMaster.DateChecking" Label=@Localizer["Date Checking Not Required"] Disabled="EDateChecking"></SfCheckBox>
+            </div>
+            <div class="col-md-3">
+                <SfCheckBox @bind-Checked="@DTFeeMaster.DiscountPossible" Label=@Localizer["Discount Possible"] Disabled="EDiscountPossible"></SfCheckBox>
+            </div>
+            <div class="col-md-3">
+                <SfCheckBox @bind-Checked="@DTFeeMaster.VatApplicable" Label=@Localizer["VAT Applicable"] Disabled="EVatApplicable"></SfCheckBox>
+            </div>
+            <div class="col-md-3">
+                <SfCheckBox @bind-Checked="@DTFeeMaster.VatInclusive" Label=@Localizer["VAT Inclusive"] Disabled="EVatInclusive"></SfCheckBox>
+            </div>
+        </div>
+    </div>
+    <div class="box-card-shadow">
+        <div class="table-responsive" style="position: relative; min-width: 300px ">
+            <SfGrid DataSource="@DSFeeMaster" ID="GvFeemaster" @ref="GvFeemaster"
+                    GridLines="GridLine.Both"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    AllowExcelExport="true"
+                    AllowPdfExport="true"
+                    Width="100%"
+                    ShowColumnChooser="true"
+                    AllowResizing="true"
+                    AllowSorting="true"
+                    EnableAltRow="true"
+                    RowHeight="25">
+                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                <GridPageSettings PageSize="50"></GridPageSettings>
+                <GridColumns>
+                    <GridColumn HeaderText=@Localizer["SlNo"] Width="70" Context="context1">
+                        <Template>
+                            @{
+                                var con = (context1 as SchoolFeeMaster);
+                                var Index = GetRowCounter(con!.Id);
+                            }
+                            <span>@(Index.Result)</span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeMaster.Id) IsPrimaryKey="true" HeaderText=@Localizer["ID"] Width="120" Visible="false"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeMaster.Code) HeaderText=@Localizer["Code"] Width="100"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeMaster.Description) HeaderText=@Localizer["Description"] Width="180"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeMaster.PostTo) HeaderText=@Localizer["Post To"] Width="120"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeMaster.AccountName) HeaderText=@Localizer["AccountName"] Width="180"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeMaster.PriorityNo) HeaderText=@Localizer["PNo"] Width="120"></GridColumn>
+                    <GridColumn Field=@nameof(SchoolFeeMaster.DueDate) HeaderText=@Localizer["Due Date"] Width="120" Format="dd/MM/yyyy"></GridColumn>
+                    <GridColumn Width="40px" HeaderText=@Localizer["Show"]>
+                        <Template Context="FeeContext">
+                            @{
+                                var FeeID = (FeeContext as SchoolFeeMaster)!.Id;
+                                <a @onclick="@(() => { return OnEdit(FeeID); })"><img src="Images/View.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                            }
+                        </Template>
+                    </GridColumn>
+                </GridColumns>
+                <GridEvents RowSelecting="AccountRowSelectingHandler" TValue="SchoolFeeMaster"></GridEvents>
+            </SfGrid>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid p-0" style="padding-right:0px">
+        <div class="form-row">
+            <div class="col-md-12">
+                <BlazorStrap.BSAlert Color=" BlazorStrap.Color.Danger" @bind-IsOpen="@Open">
+                    Permission Denied
+                </BlazorStrap.BSAlert>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    int? BranchID, user;
+    public string? Category, Success, Failed;
+    bool AllowOpen = true, Open, OpenError, visible = false;
+    public string? TextBoxValue = "", ButtonLabel = "New", EditButtonLabel, mode, FeeID, AcademicYear;
+    public bool IsOpen = false, IsOpenDanger = false;
+    public object? id, idA;
+
+    public bool btnAddenable { get; set; }
+    public bool btnSaveenable { get; set; }
+    public bool btnEditenable { get; set; }
+    public bool btnDeleteenable { get; set; }
+    public bool popSearch { get; set; }
+
+    UserRights objUserRight = new UserRights();
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    public string CmbAccYear = "";
+    SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+    DtoLoginModel info = new DtoLoginModel();
+
+    public SchoolFeeMaster DTFeeMaster = new SchoolFeeMaster();
+    public IList<Accounts> PostTo = new List<Accounts>();
+    public IList<Accounts> Discount = new List<Accounts>();
+    public IList<VtypeTrans> Receipt = new List<VtypeTrans>();
+    public SchoolFeeMaster ExistFeeMaster = new SchoolFeeMaster();
+
+    public IList<MastDesignation> CmbMiscMaster = new List<MastDesignation>();
+    public IList<MastDesignation> FeeCategory = new List<MastDesignation>();
+
+    IEnumerable<string> TaxCode = new List<string>() {
+    "SR",
+    "ZR",
+    "EX",
+    "OS",
+
+    };
+
+    public IList<SchoolFeeMaster> DSFeeMaster = new List<SchoolFeeMaster>();
+    public SfGrid<SchoolFeeMaster>? GvFeemaster { get; set; }
+    SfComboBox<string, Accounts>? SfPostToObj;
+    SfComboBox<string, Accounts>? SfDiscountObj;
+
+    public bool ECode { get; set; }
+    public bool EDescription { get; set; }
+    public bool EAcademicYear { get; set; }
+    public bool EDueDate { get; set; }
+    public bool ECategory { get; set; }
+    public bool EPriorityNo { get; set; }
+    public bool EPostTo { get; set; }
+    public bool EDiscount { get; set; }
+    public bool ETaxcode { get; set; }
+    public bool EVatPercent { get; set; }
+    public bool EDateChecking { get; set; }
+    public bool EDiscountPossible { get; set; }
+    public bool EVatApplicable { get; set; }
+    public bool EVatInclusive { get; set; }
+    public bool EEndDate { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Layout.VersionChecker();
+        EditButtonLabel = "Edit";
+
+        // BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+        // user = await SessionStorage.GetItemAsync<int>("UserID");
+        // Category = await SessionStorage.GetItemAsync<string>("Category");
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = info.UserID;
+            BranchID = info.BranchID;
+            Category = info.Category;
+        }
+        AcademicYear = await SessionStorage.GetItemAsync<string>("AcademicYear");
+
+        CmbYear = (await StudentService.GetAcademicYear(BranchID))!.ToList();
+        if (AcademicYear != null)
+        {
+            CmbAccYear = AcademicYear;
+            DTFeeMaster.AcademicYear = AcademicYear.ToString();
+        }
+        else
+        {
+            objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+            CmbAccYear = objAccYear.AcademicYear!.ToString();
+            DTFeeMaster.AcademicYear = objAccYear.AcademicYear.ToString();
+        }
+
+        objAccYear = CmbYear.Where(b => b.AcademicYear!.Trim() == CmbAccYear).FirstOrDefault()!;
+        DTFeeMaster.DueDate = objAccYear.StartDate;
+        DTFeeMaster.EndDate = objAccYear.EndDate;
+
+        CmbMiscMaster = (await StudentMasterService.BindComboBox("All"))!.ToList();
+        FeeCategory = CmbMiscMaster.Where(a => a.Source == "Feecategory").ToList();
+
+        await ColumnEnable();
+
+        if (Category == "Administrator")
+        {
+            AllowOpen = true;
+            Open = false;
+
+            PostTo = (await FeeMasterService.GetPostTo(BranchID))!.ToList();
+            Discount = (await FeeMasterService.GetPostTo(BranchID))!.ToList();
+            Receipt = (await FeeMasterService.GetReceipt())!.ToList();
+            var customReceipt = new VtypeTrans() { Title = "All" };
+            Receipt.Add(customReceipt);
+
+            DSFeeMaster = (await FeeMasterService.GetFeeMasterList(CmbAccYear, BranchID))!.ToList();
+            if (DSFeeMaster.Count != 0)
+            {
+                DTFeeMaster = DSFeeMaster.FirstOrDefault()!;
+            }
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "FeeMaster", "Students", BranchID))!;
+
+                if (objUserRight.AccessDenied == true)
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+                else if (objUserRight.AllowOpen == true)
+                {
+                    AllowOpen = true;
+                    Open = false;
+
+                    PostTo = (await FeeMasterService.GetPostTo(BranchID))!.ToList();
+                    Discount = (await FeeMasterService.GetPostTo(BranchID))!.ToList();
+                    Receipt = (await FeeMasterService.GetReceipt())!.ToList();
+                    var customReceipt = new VtypeTrans() { Title = "All" };
+                    Receipt.Add(customReceipt);
+
+                    DSFeeMaster = (await FeeMasterService.GetFeeMasterList(CmbAccYear, BranchID))!.ToList();
+                    if (DSFeeMaster.Count != 0)
+                        DTFeeMaster = DSFeeMaster.FirstOrDefault()!;
+                }
+                else
+                {
+                    AllowOpen = false;
+                    Open = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                AllowOpen = false;
+                Open = true;
+            }
+        }
+
+        btnSaveenable = true;
+    }
+
+    public async Task<double> GetRowCounter(int? val)
+    {
+        var index = await GvFeemaster!.GetRowIndexByPrimaryKeyAsync(val);
+        var currentPage = GvFeemaster.PageSettings.CurrentPage;
+        if (GvFeemaster.AllowPaging && currentPage > 1)
+        {
+            index = (((currentPage - 1) * GvFeemaster.PageSettings.PageSize) + index);
+        }
+        return index + 1;
+    }
+
+    public async Task OnEdit(int ID)
+    {
+        FeeID = ID.ToString();
+
+        DTFeeMaster = (await FeeMasterService.GetDTFeeMaster(ID, BranchID))!;
+
+        if (DTFeeMaster.ReceiptType == null)
+        {
+            DTFeeMaster.ReceiptType = "All";
+        }
+        else
+        {
+            DTFeeMaster.ReceiptType = "Receipt Student";
+        }
+        if (DTFeeMaster.DiscountAccountName == null)
+        {
+            DTFeeMaster.DiscountAccountCode = "";
+            DTFeeMaster.DiscountAccountName = "";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task New_Click()
+    {
+        if (Category == "Administrator")
+        {
+            await BtnNew_Click();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "FeeMaster", "Students", BranchID))!;
+                if (objUserRight.AllowAdd == true)
+                {
+                    await BtnNew_Click();
+                }
+                else
+                {
+                    IsOpenDanger = true;
+                    Failed = "Permission Denied";
+                }
+            }
+            catch (Exception Ex)
+            {
+                Console.WriteLine(Ex);
+            }
+        }
+    }
+
+    public async Task BtnNew_Click()
+    {
+        mode = "New";
+        if (ButtonLabel == Localizer["New"])
+        {
+            DTFeeMaster.Code = "";
+            DTFeeMaster.Description = "";
+            DTFeeMaster.AcademicYear = objAccYear.AcademicYear!.ToString();
+            DTFeeMaster.DueDate = Convert.ToDateTime(objAccYear.StartDate.ToString());
+            //DTFeeMaster.DueDate = Convert.ToDateTime(null);
+            DTFeeMaster.Category = "";
+            DTFeeMaster.PriorityNo = Convert.ToInt32(null);
+            DTFeeMaster.AccountCode = null;
+            DTFeeMaster.AccountName = "";
+            DTFeeMaster.DiscountAccountCode = null;
+            DTFeeMaster.DiscountAccountName = "";
+            DTFeeMaster.ReceiptType = "";
+            DTFeeMaster.Taxcode = "";
+            DTFeeMaster.VatPercent = "";
+            DTFeeMaster.DateChecking = false;
+            DTFeeMaster.DiscountPossible = false;
+            DTFeeMaster.VatApplicable = false;
+            DTFeeMaster.VatInclusive = false;
+            DTFeeMaster.EndDate = Convert.ToDateTime(objAccYear.EndDate.ToString());
+            btnSaveenable = false;
+            ButtonLabel = "Cancel";
+            btnEditenable = true;
+            btnDeleteenable = true;
+            await ColumnDisenable();
+        }
+        else
+        {
+            DTFeeMaster.Code = "";
+            DTFeeMaster.Description = "";
+            DTFeeMaster.AcademicYear = objAccYear.AcademicYear!.ToString();
+            DTFeeMaster.DueDate = Convert.ToDateTime(null);
+            DTFeeMaster.Category = "";
+            DTFeeMaster.PriorityNo = Convert.ToInt32(null);
+            DTFeeMaster.AccountCode = "";
+            DTFeeMaster.AccountName = "";
+            DTFeeMaster.DiscountAccountCode = "";
+            DTFeeMaster.DiscountAccountName = "";
+            DTFeeMaster.ReceiptType = "";
+            DTFeeMaster.Taxcode = "";
+            DTFeeMaster.VatPercent = "";
+            DTFeeMaster.DateChecking = false;
+            DTFeeMaster.DiscountPossible = false;
+            DTFeeMaster.VatApplicable = false;
+            DTFeeMaster.VatInclusive = false;
+            DTFeeMaster.EndDate = Convert.ToDateTime(null);
+            btnSaveenable = true;
+            ButtonLabel = "New";
+            btnEditenable = false;
+            btnDeleteenable = false;
+            await ColumnEnable();
+        }
+    }
+
+    public async Task Save_Click()
+    {
+        if (mode == "New")
+        {
+            if (DTFeeMaster.Code != "")
+            {
+                if (DTFeeMaster.Description != "")
+                {
+                    //object id, idA;
+                    if (DTFeeMaster.AccountCode != null)
+                        id = await FeeMasterService.GetID(DTFeeMaster.AccountCode);
+                    if (DTFeeMaster.DiscountAccountCode != null)
+                        idA = await FeeMasterService.GetID(DTFeeMaster.DiscountAccountCode);
+
+                    SchoolFeeMaster dts = new SchoolFeeMaster();
+                    dts.Code = DTFeeMaster.Code;
+
+                    if (DTFeeMaster.PriorityNo == Convert.ToInt32(null))
+                    {
+                        dts.PriorityNo = Convert.ToInt32(null);
+                    }
+                    else
+                    {
+                        dts.PriorityNo = DTFeeMaster.PriorityNo;
+                    }
+
+                    dts.Description = DTFeeMaster.Description;
+                    dts.Category = DTFeeMaster.Category;
+
+                    // if (id == null || id == "")
+                    if (id == null)
+                    {
+                        dts.PostTo = Convert.ToInt32(null);
+                    }
+                    else
+                    {
+                        dts.PostTo = Convert.ToInt32(id);
+                    }
+
+                    if (DTFeeMaster.DueDate == Convert.ToDateTime(null))
+                    {
+                        dts.DueDate = Convert.ToDateTime(null);
+                    }
+                    else
+                    {
+                        dts.DueDate = DTFeeMaster.DueDate;
+                    }
+
+                    dts.DiscountPossible = DTFeeMaster.DiscountPossible;
+                    dts.Type = "Fee";
+                    dts.DateChecking = DTFeeMaster.DateChecking;
+                    dts.AcademicYear = DTFeeMaster.AcademicYear;
+
+                    // if (idA == null || idA == "")
+                    if (idA == null)
+                    {
+                        dts.Discount = Convert.ToInt32(null);
+                    }
+                    else
+                    {
+                        dts.Discount = Convert.ToInt32(idA);
+                    }
+
+                    if (DTFeeMaster.ReceiptType == "All")
+                    {
+                        dts.ReceiptType = System.DBNull.Value.ToString();
+                    }
+                    else
+                    {
+                        dts.ReceiptType = await FeeMasterService.GetReceiptTypeID();
+                    }
+
+                    dts.VatApplicable = DTFeeMaster.VatApplicable;
+                    dts.VatPercent = DTFeeMaster.VatPercent;
+                    dts.Taxcode = DTFeeMaster.Taxcode;
+                    dts.VatInclusive = DTFeeMaster.VatInclusive;
+                    dts.BranchId = Convert.ToInt32(BranchID);
+                    dts.EndDate = DTFeeMaster.EndDate;
+
+                    HttpResponseMessage response = await FeeMasterService.SaveFeeMaster(dts);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var jsonString = await response.Content.ReadFromJsonAsync<dtError>();
+                        if (jsonString!.Error == null)
+                        {
+                            IsOpen = true;
+                            Success = "Added Successfully";
+                        }
+                        else
+                        {
+                            IsOpenDanger = true;
+                            Failed = jsonString.Error;
+                        }
+
+                        //Success = "Added Successfully";
+                        DSFeeMaster = (await FeeMasterService.GetFeeMasterList(CmbAccYear, BranchID))!.ToList();
+
+                        DTFeeMaster.DateChecking = false;
+                        DTFeeMaster.DiscountPossible = false;
+                        DTFeeMaster.VatApplicable = false;
+                        DTFeeMaster.VatInclusive = false;
+                        btnSaveenable = true;
+                        ButtonLabel = "New";
+                        btnEditenable = false;
+                        btnDeleteenable = false;
+                        await ColumnEnable();
+
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+                else
+                {
+                    IsOpenDanger = true;
+                    Failed = "Description does not allow null";
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                IsOpenDanger = true;
+                Failed = "Code does not allow null";
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        else
+        {
+            if (FeeID != null)
+            {
+                if (DTFeeMaster.AccountCode != null)
+                {
+                    id = await FeeMasterService.GetID(DTFeeMaster.AccountCode!);
+                }
+
+                if (DTFeeMaster.DiscountAccountCode != null)
+                    idA = await FeeMasterService.GetID(DTFeeMaster.DiscountAccountCode!);
+
+                SchoolFeeMaster dts = new SchoolFeeMaster();
+
+                dts.Id = Convert.ToInt32(FeeID);
+                dts.Code = DTFeeMaster.Code;
+
+                if (DTFeeMaster.PriorityNo == Convert.ToInt32(null))
+                {
+                    dts.PriorityNo = Convert.ToInt32(null);
+                }
+                else
+                {
+                    dts.PriorityNo = DTFeeMaster.PriorityNo;
+                }
+
+                dts.Description = DTFeeMaster.Description;
+                dts.Category = DTFeeMaster.Category;
+
+                // if (id == null || id == "")
+                if (id == null)
+                {
+                    dts.PostTo = Convert.ToInt32(null);
+                }
+                else
+                {
+                    dts.PostTo = Convert.ToInt32(id);
+                }
+
+                if (DTFeeMaster.DueDate == Convert.ToDateTime(null))
+                {
+                    dts.DueDate = Convert.ToDateTime(null);
+                }
+                else
+                {
+                    dts.DueDate = DTFeeMaster.DueDate;
+                }
+
+                dts.DiscountPossible = DTFeeMaster.DiscountPossible;
+                dts.Type = "Fee";
+                dts.DateChecking = DTFeeMaster.DateChecking;
+                dts.AcademicYear = DTFeeMaster.AcademicYear;
+
+                // if (idA == null || idA == "")
+                if (idA == null)
+                {
+                    dts.Discount = Convert.ToInt32(null);
+                }
+                else
+                {
+                    dts.Discount = Convert.ToInt32(idA);
+                }
+
+                if (DTFeeMaster.ReceiptType == "All")
+                {
+                    dts.ReceiptType = System.DBNull.Value.ToString();
+                }
+                else
+                {
+                    dts.ReceiptType = await FeeMasterService.GetReceiptTypeID();
+                }
+
+                dts.VatApplicable = DTFeeMaster.VatApplicable;
+                dts.VatPercent = DTFeeMaster.VatPercent;
+                dts.Taxcode = DTFeeMaster.Taxcode;
+                dts.VatInclusive = DTFeeMaster.VatInclusive;
+                dts.EndDate = DTFeeMaster.EndDate;
+
+                HttpResponseMessage response = await FeeMasterService.UpdateFeeMaster(dts);
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadFromJsonAsync<dtError>();
+                    if (jsonString!.Error == null)
+                    {
+                        IsOpen = true;
+                        Success = "Updated Successfully";
+                    }
+                    else
+                    {
+                        IsOpenDanger = true;
+                        Failed = jsonString.Error;
+                    }
+                    //IsOpen = true;
+                    //Success = "Updated Successfully";
+                    DSFeeMaster = (await FeeMasterService.GetFeeMasterList(CmbAccYear, BranchID))!.ToList();
+
+                    DTFeeMaster.DateChecking = false;
+                    DTFeeMaster.DiscountPossible = false;
+                    DTFeeMaster.VatApplicable = false;
+                    DTFeeMaster.VatInclusive = false;
+                    btnSaveenable = true;
+                    EditButtonLabel = "Edit";
+                    btnAddenable = false;
+                    btnDeleteenable = false;
+                    await ColumnEnable();
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                IsOpenDanger = true;
+                Failed = "Please select the data to edit !!";
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public async Task Edit_Click()
+    {
+        if (Category == "Administrator")
+        {
+            await BtnEdit_Click();
+        }
+        else
+        {
+            try
+            {
+                objUserRight = (await _UserRights.GetUserRights(user, "FeeMaster", "Students", BranchID))!;
+                if (objUserRight.AllowEdit == true)
+                {
+                    await BtnEdit_Click();
+                }
+                else
+                {
+                    IsOpenDanger = true;
+                    Failed = "Permission Denied";
+                }
+            }
+            catch (Exception Ex)
+            {
+                Console.WriteLine(Ex);
+            }
+        }
+    }
+
+    public async Task BtnEdit_Click()
+    {
+        mode = "Edit";
+        if (EditButtonLabel == "Edit")
+        {
+            btnSaveenable = false;
+            EditButtonLabel = "Cancel";
+            btnAddenable = true;
+            btnDeleteenable = true;
+            await ColumnDisenable();
+        }
+        else
+        {
+            DTFeeMaster.Code = "";
+            DTFeeMaster.Description = "";
+            DTFeeMaster.AcademicYear = objAccYear.AcademicYear!.ToString();
+            DTFeeMaster.DueDate = Convert.ToDateTime(null);
+            DTFeeMaster.Category = "";
+            DTFeeMaster.PriorityNo = Convert.ToInt32(null);
+            DTFeeMaster.AccountCode = "";
+            DTFeeMaster.AccountName = "";
+            DTFeeMaster.DiscountAccountCode = "";
+            DTFeeMaster.DiscountAccountName = "";
+            DTFeeMaster.ReceiptType = "";
+            DTFeeMaster.Taxcode = "";
+            DTFeeMaster.VatPercent = "";
+            DTFeeMaster.DateChecking = false;
+            DTFeeMaster.DiscountPossible = false;
+            DTFeeMaster.VatApplicable = false;
+            DTFeeMaster.VatInclusive = false;
+            DTFeeMaster.EndDate = Convert.ToDateTime(null);
+            btnSaveenable = true;
+            EditButtonLabel = "Edit";
+            btnAddenable = false;
+            btnDeleteenable = false;
+            await ColumnEnable();
+        }
+    }
+
+    public void SelectedNameChanged(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, Accounts> arg)
+    {
+        if (arg.ItemData != null)
+        {
+            DTFeeMaster.AccountName = arg.ItemData.AccountName;
+            DTFeeMaster.AccountCode = arg.ItemData.AccountCode;
+        }
+    }
+
+    public void SelectedDiscountChanged(Syncfusion.Blazor.DropDowns.ChangeEventArgs<string, Accounts> arg)
+    {
+        if (arg.ItemData != null)
+        {
+            DTFeeMaster.DiscountAccountName = arg.ItemData.AccountName;
+            DTFeeMaster.DiscountAccountCode = arg.ItemData.AccountCode;
+        }
+        else
+        {
+            DTFeeMaster.DiscountAccountCode = DTFeeMaster.DiscountAccountCode;
+            //DTFeeMaster.DiscountAccountName = DTFeeMaster.DiscountAccountName;
+            DTFeeMaster.DiscountAccountName = "";
+        }
+    }
+
+    public async Task Delete_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? you want to delete");
+        if (confirmed)
+        {
+            if (DTFeeMaster.Code == null && DTFeeMaster.Description == null)
+            {
+                IsOpenDanger = true;
+                Failed = "Please Select Value";
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                if (FeeID != null)
+                {
+                    ExistFeeMaster = (await FeeMasterService.GetExistFeeMaster(FeeID, BranchID))!;
+                    if (ExistFeeMaster.Code != null)
+                    {
+                        IsOpenDanger = true;
+                        Failed = "Deletion not possible! Fee Schedule Exist in this Entry";
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    else
+                    {
+                        dtMasterStudent dts = new dtMasterStudent();
+                        SchoolFeeMaster objFeeMaster = new SchoolFeeMaster();
+
+                        objFeeMaster.Id = Convert.ToInt32(FeeID);
+                        objFeeMaster.Code = DTFeeMaster.Code;
+                        dts.FeeMasterEntry = objFeeMaster;
+
+                        DtoUserTrack dttrack = new DtoUserTrack();
+                        dttrack.UserId = user;
+                        dttrack.TableName = "School_FeeMaster";
+                        dttrack.ActionDate = DateTime.Now;
+                        dttrack.ModuleName = "Student";
+                        dttrack.Reference = "College Portal";
+
+                        dts.UserTrack = dttrack;
+
+                        HttpResponseMessage msg = await FeeMasterService.DeleteFeeMasterByID(dts);
+                        if (msg.IsSuccessStatusCode)
+                        {
+                            IsOpen = true;
+                            Success = "Successfully Deleted";
+
+                            DSFeeMaster = (await FeeMasterService.GetFeeMasterList(CmbAccYear, BranchID))!.ToList();
+                            DTFeeMaster = DSFeeMaster.FirstOrDefault()!;
+                            await InvokeAsync(StateHasChanged);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public async Task AccountRowSelectingHandler(RowSelectingEventArgs<SchoolFeeMaster> args)
+    {
+        int FeesID = args.Data.Id;
+        DTFeeMaster = (await FeeMasterService.GetDTFeeMaster(FeesID, BranchID))!;
+        if (DTFeeMaster.ReceiptType == null)
+        {
+            DTFeeMaster.ReceiptType = "All";
+        }
+        else
+        {
+            DTFeeMaster.ReceiptType = "Receipt Student";
+        }
+        //DiscountName = DTFeeMaster.DiscountAccountName;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task OnPostToFiltering(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+    {
+        args.PreventDefaultAction = true;
+        var pre = new WhereFilter();
+        var predicate = new List<WhereFilter>();
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountCode", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountName", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "Id", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccCategory", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+
+        pre = WhereFilter.Or(predicate);
+        var query = new Query().Where(pre).Take(40);
+        await this.SfPostToObj!.FilterAsync(PostTo, query);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task OnDiscountFiltering(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+    {
+        args.PreventDefaultAction = true;
+        var pre = new WhereFilter();
+        var predicate = new List<WhereFilter>();
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountCode", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountName", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "Id", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccCategory", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+
+        pre = WhereFilter.Or(predicate);
+        var query = new Query().Where(pre).Take(40);
+        await this.SfDiscountObj!.FilterAsync(Discount, query);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task ColumnEnable()
+    {
+        ECode = false;
+        EDescription = false;
+        EAcademicYear = false;
+        EDueDate = false;
+        ECategory = false;
+        EPriorityNo = false;
+        EPostTo = false;
+        EDiscount = false;
+        ETaxcode = false;
+        EVatPercent = false;
+        EDateChecking = true;
+        EDiscountPossible = true;
+        EVatApplicable = true;
+        EVatInclusive = true;
+        EEndDate = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task ColumnDisenable()
+    {
+        ECode = true;
+        EDescription = true;
+        EAcademicYear = true;
+        EDueDate = true;
+        ECategory = true;
+        EPriorityNo = true;
+        EPostTo = true;
+        EDiscount = true;
+        ETaxcode = true;
+        EVatPercent = true;
+        EDateChecking = false;
+        EDiscountPossible = false;
+        EVatApplicable = false;
+        EVatInclusive = false;
+        EEndDate = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await SessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+}

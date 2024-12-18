@@ -1,0 +1,34 @@
+﻿/*body {
+    direction:ltr;
+}
+label {
+    float: left;
+    text-align: left;
+}
+.e-headertext{
+    float:left;
+}
+*/
+
+body {
+    direction: ltr;
+}
+
+label {
+    float: left;
+    text-align: left;
+}
+
+.e-headertext {
+    float: left;
+}
+
+button {
+    float: left;
+    text-align: left;
+}
+
+.sidebar-treeview .e-treeview .e-icon-collapsible,
+.sidebar-treeview .e-treeview .e-icon-expandable {
+    float: right;
+}

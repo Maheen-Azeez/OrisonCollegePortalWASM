@@ -1,0 +1,3751 @@
+﻿@page "/StudentMaster"
+@page "/StudentMaster/{_AccID}"
+@using OrisonCollegePortal.Shared.Entities.Finance;
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Calendars
+@using Syncfusion.Blazor.Inputs
+@using System.IO;
+@using System.Net.Http;
+@using OrisonCollegePortal.Shared.Entities.General;
+@using BlazorStrap
+@using System.Collections.ObjectModel;
+@using Syncfusion.Blazor.Notifications
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.SplitButtons
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Data
+@using System.Text.RegularExpressions
+@using System.Globalization
+@using Newtonsoft.Json.Linq
+@using System.Data
+@using System.Net.Http.Json
+@using Newtonsoft.Json
+@using System.Web
+@using Syncfusion.Blazor.Popups
+@using OrisonCollegePortal.Shared.Entities
+@using OrisonCollegePortal.Client.Services
+@using static System.Net.WebRequestMethods;
+
+@inject HttpClient Http
+@inject ToastService ToastService
+@inject IJSRuntime JsRuntime;
+@inject NavigationManager NavigationManager
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager StudentsService
+@inject OrisonCollegePortal.Client.Contracts.Finance.IStudentManager _stud
+@inject OrisonCollegePortal.Client.Contracts.IDocumentManager documentService
+@inject OrisonCollegePortal.Client.Contracts.IFeePostingManager FeeManager
+@inject OrisonCollegePortal.Client.Contracts.IUserLoginManager _userLoginManager
+@* @inject OrisonCollegePortal.Services.GeneralServices generalservices
+ *@
+ @using Microsoft.Extensions.Localization
+ @using OrisonCollegePortal.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/CustomBootstrap.css" rel="stylesheet" />
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <link href="css/OrisonCustomStyles.css" rel="stylesheet" />
+</head>
+
+<div class="box-card-shadow">
+    <div class="row">
+        <div class="col-md-12">
+            <SfButton IconCss="Icon add" title=@Localizer["New"] Disabled="BtnNew" CssClass="e-btn" @onclick="@New">@Localizer["New"]</SfButton>
+            <SfButton IconCss="Icon save" title=@Localizer["Save"] Disabled="BtnSave" @onclick="@Save" CssClass="e-btn">@Localizer["Save"]</SfButton>
+            <SfButton IconCss="Icon edit" title=@Localizer["Edit"] Disabled="@BtnEditDisable" @onclick="@Edit" CssClass="e-btn">@Localizer["Edit"]</SfButton>
+            <SfButton IconCss="Icon cancel" title=@Localizer["Cancel"] CssClass="e-btn" @onclick="@Cancel">@Localizer["Cancel"]</SfButton>
+            <SfButton IconCss="Icon back" title=@Localizer["Back"] CssClass="e-btn" @onclick="@Back">@Localizer["Back"]</SfButton>
+            <SfButton @onclick="@BtnSearch_Click" IconCss="Icon search" CssClass="e-btn" Content=@Localizer["Search"] />
+            <label style="color: #4758A8; font-size: medium; font-weight: bold;float:right; ">@Localizer["STUDENT MASTER"]</label>
+        </div>
+    </div>
+    <div class="col-lg-12 control-section toast-default-section">
+        <SfToast ID="toast_type" @ref="ToastObj">
+            <ToastPosition X="@ToastPosition"></ToastPosition>
+        </SfToast>
+    </div>
+</div>
+<div class="box-card-shadow">
+    <div class="row">
+        <div class="col-md-12 col-sm-12">
+            <div class="row">
+                <div class="col-md-10">
+                    <div class="row">
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["Student Code"]</label><span style="color:red;">*</span>
+                            <SfTextBox CssClass="e-outline" @bind-Value="@student.AccountCode" Enabled=false></SfTextBox>
+                        </div>
+                        <div class="col-md-6 col-sm-6">
+                            <label class="label">@Localizer["Student Name"]</label><span style="color:red;">*</span>
+                            <SfTextBox CssClass="e-outline" @bind-Value="@student.AccountName" Enabled="@Txtenable"></SfTextBox>
+                        </div>
+                        <div class="col-md-3">
+
+                            <label class="label">@Localizer["Status"]</label><span style="color:red;">*</span>
+                            <div class="d-flex flex-row w-full">
+                                <SfComboBox DataSource="@StudentStatus" AllowCustom="false" TValue="string" Enabled="@TxtStatus" Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                            CssClass="textbox"
+                                @bind-Value="@student.Status">
+                                </SfComboBox>
+
+                                <SfButton IsPrimary="false" title=@Localizer["Edit Status"] Disabled="@StatusBtn" style="width:30px" IconCss="" CssClass="e-outline e-btn4" OnClick="@SaveStatus" Content="..."></SfButton>
+
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="row" style="padding-top:5px">
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["Gender"]</label><span style="color:red;">*</span>
+                            <SfComboBox DataSource="@StudentGender" AllowCustom="false" TValue="string" Enabled="@Txtenable" Autofill="true" TItem="string" PopupHeight="200" AllowFiltering="true"
+                                        CssClass="textbox"
+                            @bind-Value="@student.Gender">
+                            </SfComboBox>
+                        </div>
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["Program/Course"]</label><span style="color:red;">*</span>
+                            <SfComboBox DataSource="@ProgrammeCode" AllowCustom="false" TValue="string" Enabled="@Txtenable" Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                        CssClass="textbox"
+                            @bind-Value="@student.ProgrammeCode">
+                            </SfComboBox>
+                        </div>
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["UnivRegNum"]</label><span style="color:transparent;">*</span>
+                            <SfTextBox CssClass="e-outline" @bind-Value="@student.UnivRegNum" Enabled=@Txtenable></SfTextBox>
+                        </div>
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["SubStatus"]</label><span style="color:transparent;">*</span>
+                            <SfComboBox DataSource="@StudentSubStatus" AllowCustom="false" TValue="string" Enabled="@Txtenable" Autofill="true" TItem="string" PopupHeight="200" AllowFiltering="true"
+                                        CssClass="textbox"
+                            @bind-Value="@student.SubStatus">
+                            </SfComboBox>
+                        </div>
+                    </div>
+                    <div class="row" style="padding-top:5px">
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["Year Of Study"]</label><span style="color:red;">*</span>
+                            <SfComboBox DataSource="@ProgrammeYear" AllowCustom="false" TValue="string" Enabled="@Txtenable" Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                        CssClass="textbox"
+                            @bind-Value="student.ProgrammeYear">
+                            </SfComboBox>
+                        </div>
+
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["Email"]</label><span style="color:transparent;">*</span>
+                            <SfTextBox CssClass="e-outline" @bind-Value="@student.Email" ValueChange="ValidateStudentEmail">  Enabled="@Txtenable"></SfTextBox>
+                        </div>
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["MobileNo"]</label><span style="color:transparent;">*</span>
+                            <SfTextBox CssClass="e-outline" @bind-Value="@student.MobileNo1" Enabled=@Txtenable></SfTextBox>
+                        </div>
+                        <div class="col-md-3 col-sm-3">
+                            <label class="label">@Localizer["Alt.MobileNo"]</label><span style="color:transparent;">*</span>
+                            <SfTextBox CssClass="e-outline" @bind-Value="@student.MobileNo2" Enabled="@Txtenable"></SfTextBox>
+                        </div>
+
+
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-2">
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12" style="padding-top:15px;">
+                            <img id="StudentImage" src="@StudentImage" alt="Image" style="width:100px; height:100px; align-content:center">
+                        </div>
+                        <div class="col-md-12 col-sm-12" style="padding-left:12px;text-align:center;">
+                            <br />
+                            <InputFile class="custom-file-input" OnChange="HandleFileSelected"></InputFile>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="box-card-shadow">
+    <div class="row">
+        <div class="col-md-12">
+            <SfTab CssClass="tab-adaptive" OverflowMode="OverflowMode.Scrollable" HeaderPlacement="HeaderPosition.Top" Height="auto" Width="auto">
+                <TabAnimationSettings>
+                    <TabAnimationPrevious Effect="Syncfusion.Blazor.AnimationEffect.None"></TabAnimationPrevious>
+                    <TabAnimationNext Effect="Syncfusion.Blazor.AnimationEffect.None"></TabAnimationNext>
+                </TabAnimationSettings>
+             
+                <TabItems>
+                    @*Official Tab*@
+                    <TabItem Content="">
+                        <ChildContent>
+                            <TabHeader Text=@Localizer["Official"] IconCss="tabimage official"></TabHeader>
+                        </ChildContent>
+                        <ContentTemplate>
+                            <div class="panel-body tabs-menu-body hremp-tabs1 p-0">
+                                <div class="tab-content">
+                                    <div class="tab-pane active" id="tab5">
+                                        <div class="box-card-background">
+                                            <div class="row">
+                                                <div class="col-md-12 col-sm-12">
+
+                                                    <div class="form-group">
+                                                        <div class="row pt-3">
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Board/University"]</label><span style="color:red;font-size:larger"></span>
+                                                                <SfComboBox DataSource="@University" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Board/University"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.University">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Level(UG/PG)"]</label>
+                                                                <SfComboBox DataSource="@Level" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Level"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.Level">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Mode Of Study"]</label>
+                                                                <SfComboBox DataSource="@ModeOfStudy" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Mode Of Study"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.Modeofstudy">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Entry Year"]</label>
+                                                                <SfComboBox DataSource="@EntryYear" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Entry Year"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.EntryYear">
+                                                                </SfComboBox>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Session"]</label><span style="color:red;">*</span>
+                                                                <SfComboBox DataSource="@Session" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Session"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.Session">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Entry Point"]</label><span style="color:transparent;">*</span>
+                                                                <SfComboBox DataSource="@EntryPoint" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Entry Point"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.EntryPoint">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Enrollment Date"]</label><span style="color:transparent;">*</span>
+                                                                <SfDatePicker TValue="DateTime?" Format="MM/dd/yyyy" @bind-Value="@student.EnrollmentDate" Enabled="@Txtenable" ShowClearButton="true"></SfDatePicker>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Course End Date"]</label><span style="color:transparent;">*</span>
+                                                                <SfDatePicker TValue="DateTime?" Format="MM/dd/yyyy" @bind-Value="@student.EndDate" Enabled="@Txtenable" ShowClearButton="true"></SfDatePicker>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Enrollment Status"]</label><span style="color:transparent;">*</span>
+                                                                <SfComboBox DataSource="@EnrollmentStatus" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Enrollment Status"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.EnrollmentStatus">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Optional Subject"]</label><span style="color:transparent;">*</span>
+                                                                <SfComboBox DataSource="@OptionalSubject" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Optional Subject"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.OptSubjects">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Second Language"]</label><span style="color:transparent;">*</span>
+                                                                <SfComboBox DataSource="@SecondLanguage" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Second Language"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                            CssClass="textbox"
+                                                                            @bind-Value="@student.SecondLanguage">
+                                                                </SfComboBox>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="label">@Localizer["Subjects"]</label><span style="color:transparent;">*</span>
+                                                                <SfTextBox Multiline=true CssClass="e-outline" @bind-Value="@student.Subjects" Enabled=Txtenable></SfTextBox>
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+
+                                                    <fieldset class="fieldset fieldsetclass">
+                                                        <legend class="legentclass">@Localizer["Education"]</legend>
+                                                        <div class="form-group">
+                                                            <div class="row">
+                                                                <div class="col-md-3">
+                                                                    <label class="label">@Localizer["Qualification"]</label><span style="color:red;font-size:larger"></span>
+                                                                    <SfComboBox DataSource="@Qualification" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Qualification"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                                CssClass="textbox"
+                                                                                @bind-Value="@student.Qualification">
+                                                                    </SfComboBox>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="label">@Localizer["Board/University"]</label><span style="color:red;font-size:larger"></span>
+                                                                    <SfComboBox DataSource="@University" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Board/University"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                                CssClass="textbox"
+                                                                                @bind-Value="@student.Attendeduniversity">
+                                                                    </SfComboBox>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="label">@Localizer["Attended School"]</label><span style="color:red;font-size:larger"></span>
+                                                                    <SfTextBox CssClass="e-outline" @bind-Value="@student.Attendedschool" Enabled="@Txtenable"></SfTextBox>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="label">@Localizer["Stream"]</label>
+                                                                    <SfComboBox DataSource="@Stream" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Stream"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                                                CssClass="textbox"
+                                                                                @bind-Value="@student.Stream">
+                                                                    </SfComboBox>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </fieldset>
+
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </ContentTemplate>
+                    </TabItem>
+                    @*Personal Tab*@
+                    <TabItem Content="">
+                        <ChildContent>
+                            <TabHeader Text=@Localizer["Personal"] IconCss="tabimage personal"></TabHeader>
+                        </ChildContent>
+                        <ContentTemplate>
+                            <div class="pt-1">
+                                <div class="row">
+                                    <div class="col-md-12 col-sm-12">
+                                        <div class="row">
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Date Of Birth"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfDatePicker TValue="DateTime?" Format="dd/MM/yyyy" @bind-Value="@student.Dob" Enabled="@Txtenable" ShowClearButton="true"></SfDatePicker>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Nationality"]</label>
+                                                <SfComboBox DataSource="@Nationality" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Nationality"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                            CssClass="textbox"
+                                                @bind-Value="@student.Nationality">
+                                                </SfComboBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Religion"]</label>
+                                                <SfComboBox DataSource="@Religion" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Religion"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                            CssClass="textbox"
+                                                @bind-Value="@student.Religion">
+                                                </SfComboBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Tel"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.TeleNo" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 col-sm-12">
+                                        <div class="row" style="padding-top:15px">
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Tel(Res)"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.TeleNoRes" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Tel(Off)"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.TeleNoOff" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Official Email"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.P_Email" ValueChange="ValidateStudentOtherEmail" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Comm.Address"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.CommAddress" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 col-sm-12">
+                                        <div class="row" style="padding-top:15px">
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Permanent Address"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.PerAddress" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </ContentTemplate>
+                    </TabItem>
+                    @*Parental Tab*@
+                    <TabItem Content="">
+                        <ChildContent>
+                            <TabHeader Text=@Localizer["Parental"] IconCss="tabimage Parental"></TabHeader>
+                        </ChildContent>
+                        <ContentTemplate>
+                            <div class="pt-1">
+                                <div class="row">
+                                    <div class="col-md-12 col-sm-12">
+                                        <div class="row">
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Father Name"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.FName" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Mobile No.(Father)"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.TelFather" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Mother Name"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.MName" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Mobile No.(Mother)"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.TelMother" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 col-sm-12">
+                                        <div class="row" style="padding-top:15px">
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Guardian"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.Guardian" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Mobile No"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.MobileNo" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Guardian Email"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.Guardian_Email" Enabled="@Txtenable"></SfTextBox>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </ContentTemplate>
+                    </TabItem>
+                    <TabItem Content="">
+                        <ChildContent>
+                            <TabHeader Text=@Localizer["Transport"] IconCss="tabimage Transport"></TabHeader>
+                        </ChildContent>
+                        <ContentTemplate>
+                            <div class="pt-1">
+                                <div class="row">
+                                    <div class="col-md-12 col-sm-12">
+                                        <div class="row">
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["PickUp Point"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.PickupPoint" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["DropOff Point"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.DropOffPoint" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Area"]</label>
+                                                <SfComboBox DataSource="@Area" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose BusArea"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                            CssClass="textbox"
+                                                @bind-Value="@student.Area">
+                                                </SfComboBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Emirate"]</label>
+                                                <SfComboBox DataSource="@Emirate" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Emirate"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                            CssClass="textbox"
+                                                @bind-Value="@student.Emirate">
+                                                </SfComboBox>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 col-sm-12">
+                                        <div class="row" style="padding-top:15px">
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Street Name"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.StreetName" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Building Name"]</label><span style="color:red;font-size:larger"></span>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.BuildingName" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Flat No"]</label>
+                                                <SfTextBox CssClass="e-outline" @bind-Value="@student.FlatNo" Enabled="@Txtenable"></SfTextBox>
+                                            </div>
+                                            <div class="col-md-3 col-sm-3">
+                                                <label class="label">@Localizer["Alloted Bus No"]</label>
+                                                <SfComboBox DataSource="@BusNo" AllowCustom="false" TValue="string" Enabled="@Txtenable" Placeholder=@Localizer["Choose Bus"] Autofill="true" TItem="string" PopupHeight="200"  AllowFiltering="true"
+                                                            CssClass="textbox"
+                                                @bind-Value="@student.AllotedBusNo">
+                                                </SfComboBox>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </ContentTemplate>
+                    </TabItem>
+                    @*Document Tab*@
+                    @if (_AccID != null)
+                    {
+                        <TabItem Content="" Disabled="@Hide">
+                            <ChildContent>
+                                <TabHeader Text=@Localizer["Documents"] IconCss="tabimage doc"></TabHeader>
+                            </ChildContent>
+                            <ContentTemplate>
+                                <div class="pt-1">
+                                    <div class="col-md-12">
+                                        <div style="padding-top: 20px;">
+                                            <div class="form-row">
+                                                <div class="col-md-4">
+                                                    <SfDropDownList ID="DocType" Enabled="DocEnable" Placeholder=@Localizer["Document Type"] TItem="string" TValue="string" @bind-Value="@documents.Type" DataSource="@DocumentType" FloatLabelType="FloatLabelType.Always">
+                                                        <DropDownListFieldSettings Text="Description" Value="Description"></DropDownListFieldSettings>
+                                                    </SfDropDownList>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <SfTextBox ID="DocumentNo" @bind-Value="@documents.DocumentNo" Placeholder=@Localizer["Document No:"] FloatLabelType="FloatLabelType.Always">
+                                                    </SfTextBox>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <SfTextBox ID="IssuePlace" @bind-Value="@documents.IssuePlace" Placeholder=@Localizer["Issue Place"] FloatLabelType="FloatLabelType.Always"></SfTextBox>
+                                                </div>
+                                            </div>
+                                            <div class="form-row" style="padding-top: 10px;">
+                                                <div class="form-group col-md-4">
+                                                    <SfDatePicker ID="IssueDate" @bind-Value="@documents.IssueDate" Placeholder=@Localizer["Issue Date"] Format='dd/MM/yyyy' FloatLabelType="FloatLabelType.Always"></SfDatePicker>
+                                                </div>
+                                                <div class="form-group col-md-4">
+                                                    <SfDatePicker ID="ExpiryDate" @bind-Value="@documents.ExpiryDate" Placeholder=@Localizer["Expiry Date"] Format='dd/MM/yyyy' FloatLabelType="FloatLabelType.Always"></SfDatePicker>
+                                                </div>
+                                            </div>
+                                            <div class="form-row" style="padding-top: 10px;">
+                                                <div class="form-group col-md-4">
+                                                    <SfUploader ID="UploadFiles" @ref="UploaderObj" MaxFileSize="20000000" AutoUpload="true" ShowFileList="true">
+                                                        @*@if (documents.FileName != null)
+
+                                                    {
+                                                    <UploaderFiles>
+                                                    <UploaderUploadedFiles Name="@(documents.FileName)"  Size="documents.FileSize"></UploaderUploadedFiles>
+                                                    </UploaderFiles>
+                                                    }*@
+                                                        <UploaderEvents Success="OnSuccess" FileSelected="OnFileSelected" BeforeRemove="OnFileRemove"></UploaderEvents>
+                                                        <UploaderAsyncSettings SaveUrl="api/Upload/Save" RemoveUrl="api/Upload/Remove"></UploaderAsyncSettings>
+                                                    </SfUploader>
+                                                </div>
+
+                                                <div class="col-md-1" style="padding-top: 5px;padding-bottom:10px">
+                                                    <SfButton IconCss="Icon save" CssClass="e-outline" OnClick="@SaveDocument">@Localizer["Save"]</SfButton>
+                                                </div>
+                                                <div class="col-md-1" style="padding-top: 5px;padding-bottom:10px padding-left:15px;">
+                                                    <SfButton IconCss="Icon cancel" CssClass="e-outline" @onclick="@DocumentCancel">@Localizer["Cancel"]</SfButton>
+                                                </div>
+                                                @* <div>
+                                            <BSAlert Color="BlazorStrap.Color.Success" @bind-IsOpen="@IsOpen">
+                                            @Success
+                                            </BSAlert>
+                                            </div>*@
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div>
+                                        @if (GridDocument == null)
+                                        {
+                                            <p><em>NO DATA...</em></p>
+                                        }
+                                        else
+                                        {
+                                            <SfGrid GridLines="GridLine.Both" DataSource="@GridDocument" AllowResizing="true"
+                                                    AllowSorting="true"
+                                                    EnableAltRow="true"
+                                                    RowHeight="25">
+                                                <GridEvents QueryCellInfo="QueryCellInfoHandler" TValue="Documents"></GridEvents>
+                                                <GridPageSettings PageSize="20" PageSizes="true"></GridPageSettings>
+                                                <GridColumns>
+                                                    <GridColumn Index="0" TextAlign="TextAlign.Center" Width="50px">
+                                                        <Template>
+                                                            @{
+                                                                int ID = (context as Documents).Document_id;
+                                                                <a @onclick="@(() => { Delete_Click(ID); })"><img src="Images/delete1.png" title="Delete" style="height: 20px; width: 20px; cursor: pointer;" /></a>
+                                                            }
+                                                        </Template>
+                                                    </GridColumn>
+                                                    <GridColumn Width="80px">
+                                                        <Template Context="contex">
+                                                            @{
+                                                                var file = (contex as Documents).FileName;
+                                                                if (file == null || file == "")
+                                                                {
+                                                                    <span style="color:red"><img src="Images/view.png" style="height:20px;width:20px" />No file</span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    string _file = filePubpath + file;
+                                                                    <a href="@_file" target="_blank"><img src="Images/view.png" style="height:20px;width:20px" />View</a>
+                                                                }
+                                                            }
+                                                        </Template>
+                                                    </GridColumn>
+                                                    <GridColumn Width="50px">
+                                                        <Template>
+                                                            @{
+                                                                int DocID = (context as Documents).Document_id;
+                                                                <a @onclick="@(() => { OnEditButtonClick(DocID); })"><img src="Images/Pencil.png" title="Edit" style="height:20px;width:20px; cursor:pointer;" /></a>
+                                                            }
+                                                        </Template>
+                                                    </GridColumn>
+                                                    <GridColumn HeaderText="S.No" Width="70">
+                                                        <Template Context="con">
+                                                            @{
+                                                                var val = GetRowCounter1(con as Documents);
+                                                                @val.Result
+                                                            }
+                                                        </Template>
+                                                    </GridColumn>
+                                                    <GridColumn Field=@nameof(Documents.Document_id) Visible="false" Width="120" />
+                                                   @*  <GridColumn Field=@nameof(Documents.AccountCode) HeaderText="Code" Width="70"></GridColumn>
+                                                    <GridColumn Field=@nameof(Documents.AccountName) HeaderText="Account Name" Width="180"></GridColumn> *@
+                                                    <GridColumn Field=@nameof(Documents.Type) HeaderText=@Localizer["Document Type"] Width="150"></GridColumn>
+                                                    <GridColumn Field="@nameof(Documents.DocumentNo)" HeaderText=@Localizer["Document No"] Width="180"></GridColumn>
+                                                    <GridColumn Field="@nameof(Documents.IssueDate)" HeaderText=@Localizer["Issue Date"] Format="dd/MM/yyyy" Type="ColumnType.Date" Width="100"></GridColumn>
+                                                    <GridColumn Field="@nameof(Documents.ExpiryDate)" HeaderText=@Localizer["Expiry Date"] Format="dd/MM/yyyy" Type="ColumnType.Date" Width="100"></GridColumn>
+                                                    <GridColumn Field="@nameof(Documents.IssuePlace)" HeaderText=@Localizer["Issue Place"] Width="100"></GridColumn>
+                                                </GridColumns>
+                                            </SfGrid>
+                                        }
+                                    </div>
+                                </div>
+                            </ContentTemplate>
+                        </TabItem>                   
+                        @*Fees Tab*@
+                        <TabItem Content="" Disabled="@Hide">
+                           <ChildContent> 
+                            <TabHeader Text=@Localizer["Fees"] IconCss="tabimage Finance"></TabHeader>
+                                <TabEvents Selecting="TabSelecting"></TabEvents>
+                                </ChildContent>
+                            
+                        </TabItem>
+                    }
+                     
+                    
+                </TabItems>
+            </SfTab>
+        </div>
+    </div>
+</div>
+<SfDialog Width="800px" IsModal="true" @bind-Visible="@popSearch" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header>
+            @Localizer["Search Students"]
+        </Header>
+        <Content>
+            <div class="container-fluid">
+                <div class="pb-2">
+                    @*<SfTextBox @ref="search" Input="OnInput" Placeholder="Global Search" Width="100%" ShowClearButton="true" CssClass="e-btn2" ValueChange="OnSearch" Created="@onCreateSearch" EnablePersistence="true"></SfTextBox>*@
+                    <SfTextBox @ref="search" Input="OnInput" Placeholder="Global Search" Width="100%" ShowClearButton="true" CssClass="e-btn2" Created="@onCreateSearch" EnablePersistence="true"></SfTextBox>
+                </div>
+                <div>
+                    @if (StudentList != null)
+                    {
+                        <SfGrid DataSource="@StudentList" ID="gv_studentList" @ref="gv_studentList"
+                                GridLines="GridLine.Both"
+                                AllowFiltering="true"
+                                AllowPaging="true"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                Height="350"
+                                Width="100%"
+                                AllowSelection="true"
+                                ShowColumnChooser="true"
+                                AllowResizing="true"
+                                AllowSorting="true"
+                                EnableAltRow="true"
+                                RowHeight="25">
+                            <GridEvents Created="CreatedHandler" RowSelecting="RowSelectingHandler" TValue="dtoStudentRegisterDefault"></GridEvents>
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridPageSettings PageSize="50"></GridPageSettings>
+
+                            <GridColumns>
+                                @*<GridColumn Width="40px" HeaderText="" Index="0">
+                            <Template Context="StudContext">
+                            @{ var StudID = (StudContext as dtStudentRegister).AccountID;
+                            <a @onclick="@(() => { OnGo(StudID); })"><img src="Images/Forward.png" style="height:20px;width:20px; cursor:pointer;" /></a>
+                            }
+                            </Template>
+                            </GridColumn>*@
+                                @*<GridColumn Width="30" HeaderText="" HeaderTextAlign="TextAlign.Center" Index="0">
+                            <GridCommandColumns>
+                            <GridCommandColumn ButtonOption="@(new CommandButtonOptions() { CssClass="oi oi-pencil grid-edit btn-width"})" Title="Edit"></GridCommandColumn>
+                            </GridCommandColumns>
+                            </GridColumn>*@
+                                <GridColumn HeaderText=@Localizer["SlNo"] Width="50" Context="context1" Index="1">
+                                    <Template>
+                                        @{
+                                            var con = (context1 as dtoStudentRegisterDefault);
+                                            var Index = GetRowCounter(con.AccountID);
+                                        }
+                                        <span>@(Index.Result)</span>
+                                    </Template>
+
+                                </GridColumn>
+
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.AccountID) IsPrimaryKey="true" HeaderText=@Localizer["AccountID"] Width="120" Visible="false"></GridColumn>
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.AccountCode) HeaderText=@Localizer["SCode"] Width="90" Index="2"></GridColumn>
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.AccountName) HeaderText=@Localizer["Student Name"] Width="180" Index="3"></GridColumn>
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.Class) HeaderText=@Localizer["Program"] Width="90" Index="4"></GridColumn>
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.Division) HeaderText=@Localizer["Programme Year"] Width="80" Index="5"></GridColumn>
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.ParentCode) HeaderText=@Localizer["Parent Code"] Width="100" Index="6"></GridColumn>
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.ParentName) HeaderText=@Localizer["Parent Name"] Width="180" Index="7"></GridColumn>
+                                <GridColumn Field=@nameof(dtoStudentRegisterDefault.Mobile) HeaderText=@Localizer["Mobile"] Width="120" Index="8"></GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+                    }
+                </div>
+            </div>
+        </Content>
+    </DialogTemplates>
+    <DialogButtons>
+        @*<DialogButton Content="Proceed" IsPrimary="true" @onclick="@Proceed_Click" />*@
+        <DialogButton Content=@Localizer["Cancel"] IsPrimary="true" @onclick="@(()=>popSearch=false)" />
+    </DialogButtons>
+    <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+</SfDialog>
+
+@code {
+    [Parameter]
+    public string? _AccID { get; set; }
+
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    private static string ToastContent;
+    private string? DocID { get; set; }
+    private string str_student = "";
+    private string ToastPosition = "Right";
+    private string CmbAccYear = "", AcademicYear = "", GridHeight = "500px";
+    string? username, Category;
+    string filePubpath = "";
+    string filePath, Valid, Con;
+    string _docType, Success;
+    string StudentImage = "Images/employees.jpg";
+
+    private int BranchID;
+    private int vtype, feeexist, Addvtype;
+    private int feeDiscountExist;
+    private int AdvVatId, UserID;
+    private int? user;
+
+    long vID;
+
+    private bool VisibleProperty { get; set; } = false;
+    private bool ErrorMessage = false;
+    private bool SaveorUpdate = false;
+    private bool BtnSave = false;
+    private bool StatusBtn = false;
+    private bool BtnNew = true;
+    private bool BtnEditDisable = true;
+    private bool Txtenable = true;
+    private bool parentenable = false;
+    private bool TxtStatus = true;
+    private bool ShowDocumentTab;
+    private bool flag = false;
+    private bool PopupFeeError { get; set; }
+    private bool popSearch = false;
+    private bool PopupSaveError { get; set; }
+    private bool PopupLoading { get; set; }
+    private bool PopupVisible { get; set; }
+    private bool PopupDeVisible { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private bool? possible = false;
+    private bool AllowOpen = true, Hide = false, Open, OpenError, visible = false, IsOpen = false, Enable = false, DocEnable = false;
+
+    private SfTextBox search;
+    private SfComboBox<string, Student> SfStudentObj;
+    private SfToast ToastObj;
+    private SfUploader UploaderObj;
+    private SfGrid<dtoStudentRegisterDefault> gv_studentList { get; set; }
+
+    private Student student = new Student();
+    private Parent parent = new Parent();
+    private Documents documents = new Documents();
+    private dtStudentTransaction DTStudentTrans = new dtStudentTransaction();
+    private DtoLoginModel info = new DtoLoginModel();
+    private Col_Intake Intake = new Col_Intake();
+    private Documents SelectedDocument = new Documents();
+    private dtStudentFeeSummary StudFeeSummary = new dtStudentFeeSummary();
+    private dtStudentStatement StudStatement = new dtStudentStatement();
+    private SchoolAcademicYear objAccYear = new SchoolAcademicYear();
+
+    public List<Student> GridStud = new List<Student>();
+    public List<Documents> documentlist = new List<Documents>();
+    public List<Documents> GridDocument = new List<Documents>();
+    public List<dtoStudentRegisterDefault> StudentList = new List<dtoStudentRegisterDefault>();
+    public List<string> DocumentType = new List<string>();
+    public List<SchoolAcademicYear> CmbYear = new List<SchoolAcademicYear>();
+    public List<Documents> GridDocsbyId = new List<Documents>();
+    private List<ToastModel> Toast = new List<ToastModel>
+    {
+         new ToastModel{ Title = "Success!", Content=ToastContent, CssClass="e-toast-success", Icon="e-success toast-icons" },
+        new ToastModel{ Title = "Error!", Content=ToastContent, CssClass="e-toast-danger", Icon="e-error toast-icons" },
+
+    };
+
+    public DateTime StatementFromDate;
+    public DateTime StatementEndDate;
+
+    public IList<CollegeClass> Fee = new List<CollegeClass>();
+    public IList<CollegeClass> Transport = new List<CollegeClass>();
+    public IList<CollegeClass> Admission = new List<CollegeClass>();
+    public IList<CollegeClass> OtherFee = new List<CollegeClass>();
+    public IList<CollegeClass> FeeDiscount = new List<CollegeClass>();
+    public IList<CollegeClass> TranDiscount = new List<CollegeClass>();
+    public IList<dtFeeSchedule> FeeSchedule = new List<dtFeeSchedule>();
+    public IList<dtDiscountSchedule> DiscountScheduleName = new List<dtDiscountSchedule>();
+    public IList<dtStudentFeeDetails> StudFeeDetails = new List<dtStudentFeeDetails>();
+    public IList<dtStudentStatement> StudStatementlist = new List<dtStudentStatement>();
+
+    ObservableCollection<dtPostingVoucher> objpostvoucherTemp = new ObservableCollection<dtPostingVoucher>();
+
+    IEnumerable<string> Qualification = new List<string>();
+    IEnumerable<string> StudentStatus = new List<string>();
+    IEnumerable<string> StudentSubStatus = new List<string>();
+    IEnumerable<string> ProgrammeCode = new List<string>();
+    IEnumerable<string> Stream = new List<string>();
+    IEnumerable<string> ProgrammeYear = new List<string>();
+    IEnumerable<string> StudentGender = new List<string>();
+    IEnumerable<string> University = new List<string>();
+    IEnumerable<string> ModeOfStudy = new List<string>();
+    IEnumerable<string> Level = new List<string>();
+    IEnumerable<string> Emirate = new List<string>() { "Dubai", "Sharjah", "Ajman" };
+    IEnumerable<string> EntryYear = new List<string>();
+    IEnumerable<string> Session = new List<string>();
+    IEnumerable<string> EntryPoint = new List<string>();
+    IEnumerable<string> EnrollmentStatus = new List<string>();
+    IEnumerable<string> Subjects = new List<string>();
+    IEnumerable<string> OptionalSubject = new List<string>();
+    IEnumerable<string> SecondLanguage = new List<string>();
+    IEnumerable<string> Nationality = new List<string>();
+    IEnumerable<string> Religion = new List<string>();
+    IEnumerable<string> BusNo = new List<string>();
+    IEnumerable<string> Area = new List<string>();
+
+    private Dictionary<string, object> RightAlignTextbox { get; set; } = new Dictionary<string, object>() { { "style", "text-align: right;padding-right: 10px;" } };
+    private Query LocalDataQueryMemberAccount { get; set; } = new Query().Take(10);
+    private AggregateTemplateContext aggregate, aggregate1;
+
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        this.VisibleProperty = true;
+        var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+        await GetLoginInfo();
+        if (info != null)
+        {
+            user = info.UserID;
+            BranchID = info.BranchID;
+            Category = info.Category;
+
+            AcademicYear = await sessionStorage.GetItemAsync<string>("AcademicYear");
+            GridHeight = (dimension.Height - 180).ToString() + "px";
+            CmbYear = (await _stud.GetAcademicYear(BranchID))!.ToList();
+            if (AcademicYear != null)
+            {
+                CmbAccYear = AcademicYear;
+            }
+            else
+            {
+                objAccYear = CmbYear.Where(b => b.Status!.Trim() == "Current").FirstOrDefault()!;
+                if (objAccYear != null)
+                    CmbAccYear = objAccYear.AcademicYear!.ToString();
+            }
+            await LoadData();
+            await InvokeAsync(StateHasChanged);
+        }
+        else
+        {
+            await sessionStorage.ClearAsync();
+            NavigationManager.NavigateTo("Login");
+        }
+
+    }
+
+    private async Task GetLoginInfo()
+    {
+        try
+        {
+            string param = await Http.GetStringAsync("API/Encryption/Decrypt?Text=" + HttpUtility.UrlEncode(await sessionStorage.GetItemAsync<string>("token")));
+            if (!string.IsNullOrEmpty(param))
+                info = JsonConvert.DeserializeObject<DtoLoginModel>(param)!;
+        }
+        catch (Exception ex)
+        {
+            this.ToastService.ShowToast(new ToastOption()
+                {
+                    Title = "Something went wrong...",
+                    Content = ex.Message,
+                    CssClass = "e-toast-danger",
+                    Icon = "e-error toast-icons",
+                    Timeout = 2000,
+                    X = "Right",
+                    Y = "Top",
+                    CloseButton = true
+                });
+            Console.WriteLine(ex);
+            await JsRuntime.InvokeVoidAsync("window.history.back");
+        }
+    }
+
+    public async Task LoadData()
+    {
+
+        Qualification = await _stud.GetCombolist("EduQualification");
+        StudentStatus = await _stud.GetCombolist("Status");
+        ProgrammeCode = await _stud.GetCombolist("ProgCode");
+        Stream = await _stud.GetCombolist("CourseStream");
+        StudentSubStatus = await _stud.GetCombolist("SubStatus");
+        ProgrammeYear = await _stud.GetCombolist("ProgYear");
+        StudentGender = await _stud.GetCombolist("Gender");
+        University = await _stud.GetCombolist("University");
+        ModeOfStudy = await _stud.GetCombolist("StudyMode");
+        BusNo = await _stud.GetCombolist("TransportBusNo");
+        Area = await _stud.GetCombolist("TransportArea");
+        EntryYear = await _stud.GetCombolist("EntryYear");
+        Session = await _stud.GetCombolist("Session");
+        EntryPoint = await _stud.GetCombolist("ProgYear");
+        EnrollmentStatus = await _stud.GetCombolist("EnrollmentStatus");
+        Subjects = await _stud.GetCombolist("Subjects");
+        OptionalSubject = await _stud.GetCombolist("Subject");
+        SecondLanguage = await _stud.GetCombolist("Subject");
+        Nationality = await _stud.GetCombolist("Nationality");
+        Religion = await _stud.GetCombolist("Religion");
+        DocumentType = await _stud.GetCombolist("DocumentsSubmitted");
+        Level = await _stud.GetCombolist("Level");
+        filePubpath = await _userLoginManager.getBranchSettings("CollegePublishedPath");
+        GridStud = (await _stud.GetAll(BranchID, CmbAccYear));
+        Hide = true;
+        StatusBtn = true;
+        TxtStatus = true;
+        student.Status = "Active";
+        if ((_AccID != null) && (_AccID != ""))
+        {
+            StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+            StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+            Fee = (await FeeManager.GetFee(CmbAccYear, BranchID)).ToList();
+            Transport = (await FeeManager.GetTransport(CmbAccYear, BranchID)).ToList();
+            Admission = (await FeeManager.GetAdmission(CmbAccYear, BranchID)).ToList();
+            OtherFee = (await FeeManager.GetOtherFee(CmbAccYear, BranchID)).ToList();
+            FeeDiscount = (await FeeManager.GetFeeDiscount(BranchID)).ToList();
+            TranDiscount = (await FeeManager.GetFeeDiscount(BranchID)).ToList();
+            // StatementFromDate = Convert.ToDateTime(objAccYear.StartDate.ToString());
+            //  StatementEndDate = Convert.ToDateTime(objAccYear.EndDate.ToString());
+            if (objAccYear.StartDate != null)
+            {
+                StatementFromDate = Convert.ToDateTime(objAccYear.StartDate);
+            }            
+            if (objAccYear.EndDate != null)
+            {
+                StatementEndDate = Convert.ToDateTime(objAccYear.EndDate);
+            }
+            StudStatement.StartDate = Convert.ToDateTime(StatementFromDate);
+            StudStatement.EndDate = Convert.ToDateTime(StatementEndDate);
+            DateTime SDate = Convert.ToDateTime(StudStatement.StartDate.ToString());
+            DateTime EDate = Convert.ToDateTime(StudStatement.EndDate.ToString());
+            //StudStatementlist = (await FeeManager.GetStatement(BranchID, Convert.ToInt32(_AccID), SDate.ToString("MM/dd/yyyy"), EDate.ToString("MM/dd/yyyy"))).ToList();
+            //var itemToRemove = StudStatementlist.SingleOrDefault(r => r.EffectiveDate == null);
+            //StudStatementlist.Remove(itemToRemove);
+            vtype = Convert.ToInt32(await FeeManager.GetVtype("Student Fee"));
+            Addvtype = Convert.ToInt32(await FeeManager.GetVtype("Additional Fee"));
+            string cmdtext;
+            cmdtext = "Vat Received In Advance";
+            AdvVatId = await FeeManager.getUniqueAccID(cmdtext);
+            flag = true;
+            Hide = false;
+            StatusBtn = false;
+            TxtStatus = false;
+            int id = Convert.ToInt32(_AccID);
+            student = await _stud.GetStudent(id);
+            if ((student.Session != null) && (student.Session != ""))
+            {
+                Intake = await _stud.GetIntake(student.Session);
+                if (Intake.From != null)
+                {
+                    string from = Intake.From;
+                    string To = Intake.To;
+                    string[] a = from.Split("-");
+                    string[] b = To.Split("-");
+                    from = a[0] + "-" + a[1] + "-";
+                    To = b[0] + "-" + b[1] + "-";
+                    string[] c = CmbAccYear.Split("-");
+                    from = from + c[0];
+                    To = To + c[1];
+                    StudStatement.StartDate = Convert.ToDateTime(from);
+                    StudStatement.EndDate = Convert.ToDateTime(To);
+                    StatementFromDate = Convert.ToDateTime(StudStatement.StartDate.ToString());
+                    StatementEndDate = Convert.ToDateTime(StudStatement.EndDate.ToString());
+                }
+            }
+            GridDocument = await documentService.GetDocumentsById(id);
+            Photo();
+        }
+        else
+        {
+
+            StudentImage = "Images/No-Image.png";
+            Txtenable = true;
+            student = new Student();
+            student.Status = "Active";
+            await New();
+            //student.parentcode = "P" + student.AccountCode;
+
+        }
+        if ((DocID != "") && (DocID != null))
+        {
+            int DocId = Convert.ToInt32(DocID);
+            SelectedDocument = await documentService.GetDocumentByDocId(DocId);
+            GridDocsbyId = await documentService.GetDocumentsById(SelectedDocument.Account_id);
+        }
+        else
+        {
+            SelectedDocument = new Documents();
+            Enable = true;
+            DocEnable = true;
+        }
+    }
+    public void Photo()
+    {
+        if (student.Photo == null)
+        {
+            StudentImage = "Images/No-Image.png";
+        }
+        else
+        {
+            MemoryStream ms = new MemoryStream(student.Photo);
+            string base64String = Convert.ToBase64String(student.Photo, 0, student.Photo.Length);
+            StudentImage = "data:image/png;base64," + base64String;
+        }
+    }
+    public async Task OnStudentFiltering(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+    {
+        args.PreventDefaultAction = true;
+        var pre = new WhereFilter();
+        var predicate = new List<WhereFilter>();
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountCode", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountName", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        pre = WhereFilter.Or(predicate);
+        var query = new Query().Where(pre);
+        await this.SfStudentObj.FilterAsync(GridStud, query);
+    }
+    private async void ValueChangeHandler(ChangeEventArgs<string, Student> args)
+    {
+        ShowDocumentTab = false;
+        if (args.ItemData != null)
+        {
+            if (args.ItemData.AccountId != 0)
+            {
+                student = args.ItemData;
+                _AccID = args.ItemData.AccountId.ToString();
+                GridDocument = await documentService.GetDocumentsById(args.ItemData.AccountId);
+                //parentData = await _stud.GetParent(args.ItemData.Parent_id);
+                StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(args.ItemData.AccountId), BranchID, CmbAccYear));
+                StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(args.ItemData.AccountId), BranchID, CmbAccYear)).ToList();
+
+                Fee = (await FeeManager.GetFee(CmbAccYear, BranchID)).ToList();
+                Transport = (await FeeManager.GetTransport(CmbAccYear, BranchID)).ToList();
+                Admission = (await FeeManager.GetAdmission(CmbAccYear, BranchID)).ToList();
+                OtherFee = (await FeeManager.GetOtherFee(CmbAccYear, BranchID)).ToList();
+                FeeDiscount = (await FeeManager.GetFeeDiscount(BranchID)).ToList();
+                TranDiscount = (await FeeManager.GetFeeDiscount(BranchID)).ToList();
+                StatementFromDate = Convert.ToDateTime(objAccYear.StartDate.ToString());
+                StatementEndDate = Convert.ToDateTime(objAccYear.EndDate.ToString());
+                StudStatement.StartDate = Convert.ToDateTime(StatementFromDate);
+                StudStatement.EndDate = Convert.ToDateTime(StatementEndDate);
+                DateTime SDate = Convert.ToDateTime(StudStatement.StartDate.ToString());
+                DateTime EDate = Convert.ToDateTime(StudStatement.EndDate.ToString());
+                //StudStatementlist = (await FeeManager.GetStatement(BranchID, Convert.ToInt32(args.ItemData.AccountId), SDate.ToString("MM/dd/yyyy"), EDate.ToString("MM/dd/yyyy"))).ToList();
+                //var itemToRemove = StudStatementlist.SingleOrDefault(r => r.EffectiveDate == null);
+                //StudStatementlist.Remove(itemToRemove);
+                vtype = Convert.ToInt32(await FeeManager.GetVtype("Student Fee"));
+                Addvtype = Convert.ToInt32(await FeeManager.GetVtype("Additional Fee"));
+                string cmdtext;
+                cmdtext = "Vat Received In Advance";
+                AdvVatId = await FeeManager.getUniqueAccID(cmdtext);
+                Hide = false;
+                StatusBtn = false;
+                TxtStatus = false;
+
+                if ((student.Session != null) && (student.Session != ""))
+                {
+                    Intake = await _stud.GetIntake(student.Session);
+                    if (Intake.From != null)
+                    {
+                        string from = Intake.From;
+                        string To = Intake.To;
+                        string[] a = from.Split("-");
+                        string[] b = To.Split("-");
+                        from = a[0] + "-" + a[1] + "-";
+                        To = b[0] + "-" + b[1] + "-";
+                        string[] c = CmbAccYear.Split("-");
+                        from = from + c[0];
+                        To = To + c[1];
+                        StudStatement.StartDate = Convert.ToDateTime(from);
+                        StudStatement.EndDate = Convert.ToDateTime(To);
+                        StatementFromDate = Convert.ToDateTime(StudStatement.StartDate.ToString());
+                        StatementEndDate = Convert.ToDateTime(StudStatement.EndDate.ToString());
+                    }
+                }
+
+                Photo();
+                BtnNew = true;
+                BtnSave = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.GetMultipleFiles().FirstOrDefault();
+        if (file != null)
+        {
+            var ms = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(ms);
+            student.Photo = ms.ToArray();
+            MemoryStream msimage = new MemoryStream(student.Photo);
+            string base64String = Convert.ToBase64String(student.Photo, 0, student.Photo.Length);
+            StudentImage = "data:image/png;base64," + base64String;
+        }
+
+        this.StateHasChanged();
+    }
+    public async void Save()
+    {
+        if (student.Session == "" || student.Session == null)
+        {
+            ToastContent = "Session Does not Allow Null";
+            Toast[1].Content = ToastContent;
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if ((student.AccountName != "" && student.AccountName != null) &&
+        (student.Status != "" && student.Status != null) &&
+        (student.ProgrammeYear != null && student.ProgrammeYear != "") &&
+        (student.ProgrammeCode != null && student.ProgrammeCode != "") &&
+        (student.Gender != "" && student.Gender != null))
+        {
+            student.BranchId = BranchID;
+            HttpResponseMessage result = new HttpResponseMessage();
+            if ((_AccID != null) && (_AccID != ""))
+            {
+                student.AccountId = Convert.ToInt32(_AccID);
+                result = await _stud.UpdateStudent(student);
+                if (documents.FileName != null)
+                {
+                    var Doc = await documentService.UpdateDocument(documents);
+                }
+            }
+            else
+            {
+                student.parentname = student.FName == "" || student.FName == null ? student.MName : student.FName;
+                student.AcademicYear = CmbAccYear;
+                student.BranchId = BranchID;
+                result = await _stud.InsertStudent(student);
+            }
+            if (result.IsSuccessStatusCode)
+            { 
+                ToastContent = (_AccID != null) && (_AccID != "") ? "Updated SuccessFully" : "Saved Successfully";
+                //SaveorUpdate = true;
+                Toast[0].Content = ToastContent;
+                await this.ToastObj.ShowAsync(Toast[0]);
+                BtnSave = true;
+                BtnEditDisable = false;
+                BtnNew = false;
+                await Task.Delay(4000);
+                NavigationManager.NavigateTo("StudnetRegister");
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                //ErrorMessage = true;
+                ToastContent = "Something Went Wrong.";
+                Toast[1].Content = ToastContent;
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+        else
+        {
+            // ErrorMessage = true;
+            ToastContent = "Mandatory Fields Are Missing";
+            Toast[1].Content = ToastContent;
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+    }
+    public async Task Clear()
+    {
+        _AccID = "";
+
+        student.AccountName = "";
+        student.Status = "Active";
+        student.Nationality = "";
+        student.FName = "";
+        student.MName = "";
+        student.TeleNo = "";
+        student.Email = "";
+        student.CommAddress = "";
+        student.PerAddress = "";
+        student.Attendedschool = "";
+        student.Attendeduniversity = "";
+        student.TelMother = "";
+        student.TelFather = "";
+        student.TeleNoOff = "";
+        student.Otheremail = "";
+        student.MobileNo = "";
+        student.Guardian = "";
+        student.PickupPoint = "";
+        student.DropOffPoint = "";
+        student.StreetName = "";
+        student.Area = "";
+        student.BuildingName = "";
+        StatusBtn = false;
+        student.Photo = null;
+        flag = false;
+        ShowDocumentTab = false;
+        ErrorMessage = false;
+    }
+    public void Edit()
+    {
+        BtnEditDisable = true;
+        Txtenable = true;
+        BtnNew = true;
+        BtnSave = false;
+
+    }
+    public async Task New()
+    {
+        await Clear();
+        Txtenable = true;
+        BtnSave = false;
+        BtnNew = true;
+        flag = false;
+        ErrorMessage = false;
+        ShowDocumentTab = false;
+        Hide = true;
+        TxtStatus = true;
+        StatusBtn = true;
+        await InvokeAsync(StateHasChanged);
+        GridDocument = new List<Documents>();
+        //student.AccountCode = (await _stud.GetNextStudentCode(BranchID)).ToString();
+        var Abbr = (await _stud.GetAbbr(BranchID)).ToString();
+        string SExistCode = await _stud.GetNextStudentCode(BranchID);
+        if (SExistCode == null || SExistCode == "")
+        {
+            student.AccountCode = Abbr + "S01001";
+            student.parentcode = Abbr + "P01001";
+        }
+        else
+        {
+            student.AccountCode = Abbr + "S" + SExistCode;   //await StudentMasterService.GetNextNo(BranchID);
+            student.parentcode = Abbr + "P" + SExistCode;
+        }
+        student.Status = "Active";
+
+    }
+    public async Task Cancel()
+    {
+        BtnEditDisable = false;
+        BtnSave = true;
+        BtnNew = false;
+        ErrorMessage = false;
+    }
+
+    public void Back()
+    {
+        NavigationManager.NavigateTo(NavigationManager.BaseUri + "StudnetRegister");
+    }
+    public async void OnEditButtonClick(int id)
+    {
+        DocID = id.ToString();
+        documents = await documentService.GetDocumentByDocId(Convert.ToInt32(DocID));
+        documents.FileName = documents.Path + '/' + documents.FileName;
+        await InvokeAsync(StateHasChanged);
+    }
+    public double FileSize = 0;
+    public async void OnFileSelected(SelectedEventArgs args)
+    {
+
+        if (documents.Type == null && documents.DocumentNo == null)
+        {
+            ToastContent = "Please Enter Document Details";
+            // Valid = "Please enter Document Details";
+            Toast[1].Content = ToastContent;
+            await this.ToastObj.ShowAsync(Toast[1]);
+
+            if (UploaderObj != null)
+            {
+                await UploaderObj.ClearAllAsync();
+            }
+            return;
+        }
+        else
+        {
+            foreach (var file in args.FilesData)
+            {
+                FileSize = 0;
+                var i = file.Id.Split(new Char[] { '_' })[1];
+                documents.Account_id = Convert.ToInt32(_AccID);
+                file.Name = documents.Account_id + "-" + documents.Type + "-" + i;
+                FileSize = file.Size;
+                if (filename == "" || filename == null)
+                {
+                    filename = file.Name;
+                    await sessionStorage.SetItemAsync("filetype", file.Type);
+                    bool d = filename.Contains("." + file.Type);
+                    if (d == false)
+                    { filename = filename + "." + file.Type; }
+                }
+                else
+                    filename = file.Name;
+            }
+        }
+        args.IsModified = true;
+        args.ModifiedFilesData = args.FilesData;
+    }
+    public void DocumentCancel()
+    {
+        UploaderObj.ClearAllAsync();
+        filename = "";
+        documents = new Documents() { };
+        GridDocsbyId = new List<Documents>();
+        InvokeAsync(StateHasChanged);
+    }
+    public async Task OnFileRemove(BeforeRemoveEventArgs args)
+    {
+
+    }
+    public async void SaveDocument()
+    {
+        documents.Account_id = Convert.ToInt32(_AccID);
+        documents.AccountName = student.AccountName;
+        documents.AccountCode = student.AccountCode;
+        if (DocID != null && DocID != "")
+        {
+            documents.FileName = filename;
+            documents.Path = filePath;
+            documents.FileSize = FileSize;
+            HttpResponseMessage Doc = await documentService.UpdateDocument(documents);
+            if (Doc.IsSuccessStatusCode)
+            {
+                ToastContent = "Updated Successfully";
+                Toast[0].Content = ToastContent;
+                await this.ToastObj.ShowAsync(Toast[0]);
+            }
+            else
+            {
+
+                ToastContent = "Something Went Wrong,Failed to Update.";
+                Toast[1].Content = ToastContent;
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+        else
+        {
+            if ((documents.Type != null) && (documents.Type != ""))
+            {
+                documents.FileName = filename;
+                documents.Path = filePath;
+                documents.FileSize = FileSize;
+                HttpResponseMessage Doc = await documentService.InsertDocument(documents);
+                if (Doc.IsSuccessStatusCode)
+                {
+                    ToastContent = "Saved Successfully";
+                    Toast[0].Content = ToastContent;
+                    await this.ToastObj.ShowAsync(Toast[0]);
+                }
+                else
+                {
+                    ToastContent = "Something Went Wrong,Failed to Save.";
+                    Toast[1].Content = ToastContent;
+                    await this.ToastObj.ShowAsync(Toast[1]);
+                }
+            }
+            else
+            {
+                ToastContent = "Document Type does not allow null";
+                Toast[1].Content = ToastContent;
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+        // documents = new Documents();
+        int AccID = Convert.ToInt32(_AccID);
+        GridDocument = await documentService.GetDocumentsById(AccID);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void OnSuccess(SuccessEventArgs args)
+    {
+        var customHeader = args.Response.Headers.Split(new Char[] { '\n' })[1]; // To split the response header values
+        var key = customHeader.Split(new Char[] { ':' })[0]; // To get the key pair of provided custom data in header
+        var value = customHeader.Split(new Char[] { ':' })[1].Trim(); // To get the value for the key pair of provided custom data in header
+    }
+    string filename = "";
+    public async Task<int> GetRowCounter1(Documents val)
+    {
+        int RowCounter = GridDocument.IndexOf(val);
+        return RowCounter + 1;
+    }
+    public async Task Delete_Click(int ID)
+    {
+        await documentService.Delete(ID);
+        int AccID = Convert.ToInt32(_AccID);
+        GridDocument = await documentService.GetDocumentsById(AccID);
+        await InvokeAsync(StateHasChanged);
+    }
+    public void QueryCellInfoHandler(QueryCellInfoEventArgs<Documents> args)
+    {
+        if (args.Data.ExpiryDate < DateTime.Now)
+        {
+            args.Cell.AddStyle(new string[] { "color:red" });
+            //args.Cell.SetAttribute("style", "color:red");
+        }
+
+    }
+
+    public async Task FeeSchedulePost_Click()
+    {
+        if (DTStudentTrans.FeeSchedule == null)
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.FeeSchedule == "")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.FeeSchedule == "None")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else
+        {
+            Decimal DiscountAmount = 0;
+            int monthcount = 0;
+            decimal totalscheduleamount = 0;
+            int discschedule = 0;
+            foreach (dtFeeSchedule dt in FeeSchedule)
+            {
+                if (dt.DiscountPossible == true)
+                {
+                    totalscheduleamount = totalscheduleamount + dt.Amount;
+
+                }
+            }
+
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "FEE", DTStudentTrans.FeeSchedule));
+            feeDiscountExist = Convert.ToInt32(await FeeManager.FeeDiscountChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "FEE", DTStudentTrans.DiscountSchedule));
+            if (feeexist != 0)
+            {
+                if (feeDiscountExist != 0)
+                {
+                    Toast[1].Content = "Fee Posting Already Exist";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+                }
+                else
+                {
+                    bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee Posting Already Exist! Do you want to Post Discount Only?");
+                    if (confirmed)
+                    {
+                        dtsVoucher dts = new dtsVoucher();
+                        objpostvoucherTemp = new ObservableCollection<dtPostingVoucher>();
+                        FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.FeeSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                        DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.DiscountSchedule)).ToList();
+                        foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                        {
+                            discschedule = dtd.Discount;
+                        }
+                        foreach (dtFeeSchedule dt in FeeSchedule)
+                        {
+                            possible = dt.DiscountPossible;
+                            if (DTStudentTrans.DiscountSchedule != null && dt.DiscountPossible == true)
+                            {
+                                DiscountAmount = (dt.Amount * discschedule) / 100;
+                                await VoucherUpdateForDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.DiscountSchedule, dt.Discount);
+                            }
+
+                        }
+                        if ((possible != true) && (DTStudentTrans.DiscountSchedule != null))
+                        {
+                            bool confirmed2 = await JsRuntime.InvokeAsync<bool>("confirm", "Discount is not possible! Do you want to Post it Without Discount?");
+                            if (confirmed2)
+                            {
+                                dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                                var itemToRemove = dts.objpostvoucherTemp.Where(r => r.Reference == null).ToList();
+                                dts.objpostvoucherTemp = dts.objpostvoucherTemp.Where(val => !(itemToRemove.Contains(val))).ToArray();
+                                HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);
+
+
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    PopupLoading = false;
+                                    Toast[0].Content = "Posted Successfully";
+                                    await this.ToastObj.ShowAsync(Toast[0]);
+                                    StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                    StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                                }
+                                else
+                                {
+                                    PopupLoading = false;
+                                    Toast[1].Content = "Something went wrong!";
+                                    await this.ToastObj.ShowAsync(Toast[1]);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                            var itemToRemove = dts.objpostvoucherTemp.Where(r => r.Reference == null).ToList();
+                            dts.objpostvoucherTemp = dts.objpostvoucherTemp.Where(val => !(itemToRemove.Contains(val))).ToArray();
+                            HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);
+
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                PopupLoading = false;
+                                Toast[0].Content = "Posted Successfully";
+                                await this.ToastObj.ShowAsync(Toast[0]);
+                                StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                            }
+                            else
+                            {
+                                PopupLoading = false;
+                                Toast[1].Content = "Something went wrong!";
+                                await this.ToastObj.ShowAsync(Toast[1]);
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.FeeSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+                }
+                else
+                {
+                    DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.DiscountSchedule)).ToList();
+
+                    string AY = CmbAccYear.Substring(2, 2);
+                    foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                    {
+                        discschedule = dtd.Discount;
+                    }
+
+                    dtsVoucher dts = new dtsVoucher();
+                    objpostvoucherTemp.Clear();
+
+                    foreach (dtFeeSchedule dt in FeeSchedule)
+                    {
+                        Decimal totalvatamount = 0;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                            }
+                            else
+                            {
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                            }
+                        }
+
+                        dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                        objpostvoucher.EffectiveDate = dt.DueDate;
+                        objpostvoucher.VDate = dt.DueDate;
+                        objpostvoucher.DueDate = dt.DueDate;
+                        objpostvoucher.CreatedDate = DateTime.Today;
+                        objpostvoucher.ModifiedDate = DateTime.Today;
+                        objpostvoucher.Remark = DTStudentTrans.FeeSchedule;
+                        objpostvoucher.VType = vtype;
+                        objpostvoucher.BranchID = BranchID;
+                        objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                        objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.AccountName = null;
+                        objpostvoucher.AccountCode = null;
+                        objpostvoucher.UserTrackID = dt.Priorityno;
+                        objpostvoucher.CommonNarration = dt.Description;
+                        objpostvoucher.VoucherAgainst = "FEE";
+                        objpostvoucher.PreparedBy = dt.Code;
+                        objpostvoucher.VATAmt = totalvatamount;
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.TaxCode = dt.TAXCode;
+
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.Amount = dt.Amount;
+                            }
+                            else
+                            {
+                                objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+
+                        }
+
+                        objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                        objpostvoucher.Posted = Convert.ToBoolean(1);
+                        objpostvoucher.CreatedUserID = UserID;
+                        objpostvoucher.ModifiedUserID = UserID;
+                        objpostvoucher.ExchangeRate = 1;
+                        objpostvoucher.Currency = 1;
+                        objpostvoucher.RowState = "Insert";
+
+                        vID = 0;
+                        //ventry
+                        objpostvoucher.VID = vID;
+                        objpostvoucher.Description = dt.Description;
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                            }
+                            else
+                            {
+                                objpostvoucher.VECAmount = dt.Amount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VEDAmount = dt.Amount;
+                        objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                        objpostvoucher.SlNo = 1;
+                        if (dt.VatApplicable == true)
+                        {
+                            objpostvoucher.VatApplicable = true;
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VatInc = true;
+                            }
+                            objpostvoucher.VEVAccountID = AdvVatId;
+                            objpostvoucher.VEVAmount = totalvatamount;
+                        }
+                        objpostvoucherTemp.Add(objpostvoucher);
+                        possible = dt.DiscountPossible;
+                        if (DTStudentTrans.DiscountSchedule != null && dt.DiscountPossible == true)
+                        {
+
+                            DiscountAmount = (dt.Amount * discschedule) / 100;
+                            await VoucherUpdateForDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.DiscountSchedule, dt.Discount);
+
+
+                        }
+                    }
+                    //dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                    //HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                    //if (response.IsSuccessStatusCode)
+                    //{
+                    //    PopupLoading = false;
+                    //    Toast[0].Content = "Posted Successfully";
+                    //    await this.ToastObj.ShowAsync(Toast[0]);
+                    //    StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                    //    StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                    //}
+                    //else
+                    //{
+                    //    PopupLoading = false;
+                    //    Toast[1].Content = "Fee Posting Already Exist";
+                    //    await this.ToastObj.ShowAsync(Toast[1]);
+                    //}
+                    if ((possible != true) && (DTStudentTrans.DiscountSchedule != null))
+                    {
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Discount is not possible! Do you want to Post it Without Discount?");
+                        if (confirmed)
+                        {
+                            dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                            HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                PopupLoading = false;
+                                Toast[0].Content = "Posted Successfully";
+                                await this.ToastObj.ShowAsync(Toast[0]);
+                                StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                            }
+                            else
+                            {
+                                PopupLoading = false;
+                                Toast[1].Content = "Fee Posting Already Exist";
+                                await this.ToastObj.ShowAsync(Toast[1]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                        HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PopupLoading = false;
+                            Toast[0].Content = "Posted Successfully";
+                            await this.ToastObj.ShowAsync(Toast[0]);
+                            StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                            StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                        }
+                        else
+                        {
+                            PopupLoading = false;
+                            Toast[1].Content = "Fee Posting Already Exist";
+                            await this.ToastObj.ShowAsync(Toast[1]);
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+
+    public async Task DepostFee_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? You want to Depost");
+        if (confirmed)
+        {
+            int feealloc = Convert.ToInt32(await FeeManager.FeeAllocChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee"));
+            if ((feealloc == 0))
+            {
+                dtsVoucher objdepost = new dtsVoucher();
+                dtDeleteVoucher objdeletevoucher = new dtDeleteVoucher();
+                objdeletevoucher.AccountId = Convert.ToInt32(_AccID);
+                objdeletevoucher.VType = vtype;
+                objdeletevoucher.StartDate = StatementFromDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.EndDate = StatementEndDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.Type = "Fee";
+                objdepost.objdepostvoucherTemp = objdeletevoucher;
+                //FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.TransSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                //if (FeeSchedule.Count == 0)
+                //{
+                //    Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                //    await this.ToastObj.ShowAsync(Toast[1]);
+
+                //}
+                //else
+                //{
+                HttpResponseMessage msg = await FeeManager.DeletePostingVoucher(objdepost);
+                if (msg.IsSuccessStatusCode)
+                {
+                    PopupLoading = false;
+                    Toast[0].Content = "DePosted Successfully";
+                    await this.ToastObj.ShowAsync(Toast[0]);
+                    StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                    StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                }
+                //}
+            }
+
+            else
+            {
+                Toast[1].Content = "Fee Posting Already Exist";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+    }
+
+    public async Task VoucherUpdateForDiscount(int StudeAct, DateTime DiscDate, int vtype, Decimal DisAmount, string Description, string DiscountSchedule, int Discount)
+    {
+        dtPostingVoucher objpostvoucherdisc = new dtPostingVoucher();
+        objpostvoucherdisc.EffectiveDate = DiscDate;// DateTime.Today;
+        objpostvoucherdisc.VDate = DiscDate;//DateTime.Today;
+        objpostvoucherdisc.DueDate = DiscDate;// DateTime.Today;
+        objpostvoucherdisc.CreatedDate = DateTime.Today;
+        objpostvoucherdisc.ModifiedDate = DateTime.Today;
+        objpostvoucherdisc.Remark = DTStudentTrans.DiscountSchedule;
+        objpostvoucherdisc.VType = vtype;
+        objpostvoucherdisc.BranchID = BranchID;
+        objpostvoucherdisc.DisApplicable = true;
+        objpostvoucherdisc.RefNo = DTStudentTrans.DiscountSchedule;
+        objpostvoucherdisc.AccountID = StudeAct;
+        objpostvoucherdisc.CommonNarration = Description + " Discount";
+        objpostvoucherdisc.VoucherAgainst = "FEE Discount";
+        objpostvoucherdisc.PreparedBy = DiscountSchedule;
+        objpostvoucherdisc.VATAmt = 0;
+        objpostvoucherdisc.Amount = DisAmount;
+        objpostvoucherdisc.IsCanceled = Convert.ToBoolean(0);
+        objpostvoucherdisc.Posted = Convert.ToBoolean(1);
+        objpostvoucherdisc.CreatedUserID = UserID;
+        objpostvoucherdisc.ModifiedUserID = UserID;
+        objpostvoucherdisc.ExchangeRate = 1;
+        objpostvoucherdisc.Currency = 1;
+        objpostvoucherdisc.RowState = "Insert";
+
+
+        objpostvoucherdisc.RowType = "Cr";
+        objpostvoucherdisc.Description = Description + " Discount";
+        objpostvoucherdisc.AccountID = StudeAct;
+        objpostvoucherdisc.Credit = DisAmount;
+        objpostvoucherdisc.Debit = 0;
+        objpostvoucherdisc.TranType = "Sub";
+        objpostvoucherdisc.Action = "C";
+        objpostvoucherdisc.VisibleonPrint = Convert.ToBoolean(1);
+        objpostvoucherdisc.Reconciled = Convert.ToBoolean(0);
+        objpostvoucherdisc.Active = Convert.ToBoolean(1);
+        objpostvoucherdisc.RowState = "Insert";
+        objpostvoucherdisc.VEDAccountID = Discount;
+        objpostvoucherdisc.VECAccountID = StudeAct;
+        objpostvoucherdisc.Reference = "StudentFeeDiscount";
+
+        objpostvoucherTemp.Add(objpostvoucherdisc);
+    }
+
+    public async Task popClose_Click()
+    {
+        PopupVisible = false;
+        PopupDeVisible = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task TransSchedulePost_Click()
+    {
+        if (DTStudentTrans.TransSchedule == null)
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.TransSchedule == "")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.TransSchedule == "None")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else
+        {
+            Decimal DiscountAmount = 0;
+
+            decimal totalscheduleamount = 0;
+            int discschedule = 0;
+            foreach (dtFeeSchedule dt in FeeSchedule)
+            {
+                if (dt.DiscountPossible == true)
+                {
+                    totalscheduleamount = totalscheduleamount + dt.Amount;
+
+                }
+            }
+
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Transportation", DTStudentTrans.TransSchedule));
+            if (!(feeexist == 0))
+            {
+                if (feeDiscountExist != 0)
+                {
+                    Toast[1].Content = "Fee Posting Already Exist";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+                }
+                else
+                {
+                    bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee Posting Already Exist! Do you want to Post  Discount Only?");
+                    if (confirmed)
+                    {
+                        dtsVoucher dts = new dtsVoucher();
+                        objpostvoucherTemp = new ObservableCollection<dtPostingVoucher>();
+                        FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.TransSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                        DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.TranDiscountSchedule)).ToList();
+                        foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                        {
+                            discschedule = dtd.Discount;
+                        }
+                        foreach (dtFeeSchedule dt in FeeSchedule)
+                        {
+                            possible = dt.DiscountPossible;
+                            if (DTStudentTrans.TranDiscountSchedule != null && dt.DiscountPossible == true)
+                            {
+                                DiscountAmount = (dt.Amount * discschedule) / 100;
+                                await VoucherUpdateForTranDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.TranDiscountSchedule, dt.Discount);
+                            }
+
+                        }
+                        if ((possible != true) && (DTStudentTrans.TranDiscountSchedule != null))
+                        {
+                            bool confirmed2 = await JsRuntime.InvokeAsync<bool>("confirm", "Discount is not possible! Do you want to Post it Without Discount?");
+                            if (confirmed2)
+                            {
+                                dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                                var itemToRemove = dts.objpostvoucherTemp.Where(r => r.Reference == null).ToList();
+                                dts.objpostvoucherTemp = dts.objpostvoucherTemp.Where(val => !(itemToRemove.Contains(val))).ToArray();
+                                HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);
+
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    PopupLoading = false;
+                                    Toast[0].Content = "Posted Successfully";
+                                    await this.ToastObj.ShowAsync(Toast[0]);
+                                    StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                    StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                                }
+                                else
+                                {
+                                    PopupLoading = false;
+                                    Toast[1].Content = "Something went wrong!";
+                                    await this.ToastObj.ShowAsync(Toast[1]);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                            var itemToRemove = dts.objpostvoucherTemp.Where(r => r.Reference == null).ToList();
+                            dts.objpostvoucherTemp = dts.objpostvoucherTemp.Where(val => !(itemToRemove.Contains(val))).ToArray();
+                            HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                PopupLoading = false;
+                                Toast[0].Content = "Posted Successfully";
+                                await this.ToastObj.ShowAsync(Toast[0]);
+                                StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                            }
+                            else
+                            {
+                                PopupLoading = false;
+                                Toast[1].Content = "Something went wrong!";
+                                await this.ToastObj.ShowAsync(Toast[1]);
+                            }
+                        }
+
+                    }
+
+                }
+            }
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.TransSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+
+                }
+                else
+                {
+                    DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.TranDiscountSchedule)).ToList();
+
+                    string AY = CmbAccYear.Substring(2, 2);
+                    foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                    {
+                        discschedule = dtd.Discount;
+                    }
+
+                    dtsVoucher dts = new dtsVoucher();
+                    objpostvoucherTemp.Clear();
+
+                    foreach (dtFeeSchedule dt in FeeSchedule)
+                    {
+                        Decimal totalvatamount = 0;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                            }
+                            else
+                            {
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                            }
+                        }
+
+                        dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                        objpostvoucher.EffectiveDate = dt.DueDate;
+                        objpostvoucher.VDate = dt.DueDate;
+                        objpostvoucher.DueDate = dt.DueDate;
+                        objpostvoucher.CreatedDate = DateTime.Today;
+                        objpostvoucher.ModifiedDate = DateTime.Today;
+                        objpostvoucher.Remark = DTStudentTrans.TransSchedule;
+                        objpostvoucher.VType = vtype;
+                        objpostvoucher.BranchID = BranchID;
+                        objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                        objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.AccountName = null;
+                        objpostvoucher.AccountCode = null;
+                        objpostvoucher.UserTrackID = dt.Priorityno;
+                        objpostvoucher.CommonNarration = dt.Description;
+                        objpostvoucher.VoucherAgainst = "Transportation";
+                        objpostvoucher.PreparedBy = dt.Code;
+                        objpostvoucher.VATAmt = totalvatamount;
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.TaxCode = dt.TAXCode;
+
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.Amount = dt.Amount;
+                            }
+                            else
+                            {
+                                objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+
+                        }
+
+                        objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                        objpostvoucher.Posted = Convert.ToBoolean(1);
+                        objpostvoucher.CreatedUserID = UserID;
+                        objpostvoucher.ModifiedUserID = UserID;
+                        objpostvoucher.ExchangeRate = 1;
+                        objpostvoucher.Currency = 1;
+                        objpostvoucher.RowState = "Insert";
+
+                        vID = 0;
+                        //ventry
+                        objpostvoucher.VID = vID;
+                        objpostvoucher.Description = dt.Description;
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                            }
+                            else
+                            {
+                                objpostvoucher.VECAmount = dt.Amount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VEDAmount = dt.Amount;
+                        objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                        objpostvoucher.SlNo = 1;
+                        if (dt.VatApplicable == true)
+                        {
+                            objpostvoucher.VatApplicable = true;
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VatInc = true;
+                            }
+                            objpostvoucher.VEVAccountID = AdvVatId;
+                            objpostvoucher.VEVAmount = totalvatamount;
+                        }
+                        objpostvoucherTemp.Add(objpostvoucher);
+                        possible = dt.DiscountPossible;
+                        if (DTStudentTrans.TranDiscountSchedule != null && dt.DiscountPossible == true)
+                        {
+
+                            DiscountAmount = (dt.Amount * discschedule) / 100;
+                            await VoucherUpdateForTranDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.TranDiscountSchedule, dt.Discount);
+
+
+                        }
+
+
+
+                        //await _IPostingManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                        //int slno = 1;
+
+                        //await GetUniqueAccounts();
+
+
+                    }
+                    if ((possible != true) && (DTStudentTrans.TranDiscountSchedule != null))
+                    {
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Discount is not possible! Do you want to Post it Without Discount?");
+                        if (confirmed)
+                        {
+                            dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                            HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                PopupLoading = false;
+                                Toast[0].Content = "Posted Successfully";
+                                await this.ToastObj.ShowAsync(Toast[0]);
+                                StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                            }
+                            else
+                            {
+                                PopupLoading = false;
+                                Toast[1].Content = "Fee Posting Already Exist";
+                                await this.ToastObj.ShowAsync(Toast[1]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                        HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PopupLoading = false;
+                            Toast[0].Content = "Posted Successfully";
+                            await this.ToastObj.ShowAsync(Toast[0]);
+                            StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                            StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                        }
+                        else
+                        {
+                            PopupLoading = false;
+                            Toast[1].Content = "Fee Posting Already Exist";
+                            await this.ToastObj.ShowAsync(Toast[1]);
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+    public async Task DepostTrans_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? You want to Depost");
+        if (confirmed)
+        {
+            int feealloc = Convert.ToInt32(await FeeManager.FeeAllocChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Transportation"));
+            if ((feealloc == 0))
+            {
+                dtsVoucher objdepost = new dtsVoucher();
+                dtDeleteVoucher objdeletevoucher = new dtDeleteVoucher();
+                objdeletevoucher.AccountId = Convert.ToInt32(_AccID);
+                objdeletevoucher.VType = vtype;
+                objdeletevoucher.StartDate = StatementFromDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.EndDate = StatementEndDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.Type = "Transportation";
+                objdepost.objdepostvoucherTemp = objdeletevoucher;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.TransSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+
+                }
+                else
+                {
+                    HttpResponseMessage msg = await FeeManager.DeletePostingVoucher(objdepost);
+                    if (msg.IsSuccessStatusCode)
+                    {
+                        PopupLoading = false;
+                        Toast[0].Content = "DePosted Successfully";
+                        await this.ToastObj.ShowAsync(Toast[0]);
+                        StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                        StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                    }
+                }
+            }
+
+            else
+            {
+                Toast[1].Content = "Fee Posting Already Exist";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+    }
+    public async Task VoucherUpdateForTranDiscount(int StudeAct, DateTime DiscDate, int vtype, Decimal DisAmount, string Description, string DiscountSchedule, int Discount)
+    {
+        dtPostingVoucher objpostvoucherdisc = new dtPostingVoucher();
+        objpostvoucherdisc.EffectiveDate = DiscDate;// DateTime.Today;
+        objpostvoucherdisc.VDate = DiscDate;//DateTime.Today;
+        objpostvoucherdisc.DueDate = DiscDate;// DateTime.Today;
+        objpostvoucherdisc.CreatedDate = DateTime.Today;
+        objpostvoucherdisc.ModifiedDate = DateTime.Today;
+        objpostvoucherdisc.Remark = DTStudentTrans.TranDiscountSchedule;
+        objpostvoucherdisc.VType = vtype;
+        objpostvoucherdisc.BranchID = BranchID;
+        objpostvoucherdisc.DisApplicable = true;
+        objpostvoucherdisc.RefNo = DTStudentTrans.TranDiscountSchedule;
+        objpostvoucherdisc.AccountID = StudeAct;
+        objpostvoucherdisc.CommonNarration = Description + " Discount";
+        objpostvoucherdisc.VoucherAgainst = "Transportation Discount";
+        objpostvoucherdisc.PreparedBy = DiscountSchedule;
+        objpostvoucherdisc.VATAmt = 0;
+        objpostvoucherdisc.Amount = DisAmount;
+        objpostvoucherdisc.IsCanceled = Convert.ToBoolean(0);
+        objpostvoucherdisc.Posted = Convert.ToBoolean(1);
+        objpostvoucherdisc.CreatedUserID = UserID;
+        objpostvoucherdisc.ModifiedUserID = UserID;
+        objpostvoucherdisc.ExchangeRate = 1;
+        objpostvoucherdisc.Currency = 1;
+        objpostvoucherdisc.RowState = "Insert";
+
+
+        objpostvoucherdisc.RowType = "Cr";
+        objpostvoucherdisc.Description = Description + " Discount";
+        objpostvoucherdisc.AccountID = StudeAct;
+        objpostvoucherdisc.Credit = DisAmount;
+        objpostvoucherdisc.Debit = 0;
+        objpostvoucherdisc.TranType = "Sub";
+        objpostvoucherdisc.Action = "C";
+        objpostvoucherdisc.VisibleonPrint = Convert.ToBoolean(1);
+        objpostvoucherdisc.Reconciled = Convert.ToBoolean(0);
+        objpostvoucherdisc.Active = Convert.ToBoolean(1);
+        objpostvoucherdisc.RowState = "Insert";
+        objpostvoucherdisc.VEDAccountID = Discount;
+        objpostvoucherdisc.VECAccountID = StudeAct;
+        objpostvoucherdisc.Reference = "StudentFeeDiscount";
+
+        objpostvoucherTemp.Add(objpostvoucherdisc);
+    }
+    public async Task VoucherUpdateForAdmissionDiscount(int StudeAct, DateTime DiscDate, int vtype, Decimal DisAmount, string Description, string DiscountSchedule, int Discount)
+    {
+        dtPostingVoucher objpostvoucherdisc = new dtPostingVoucher();
+        objpostvoucherdisc.EffectiveDate = DiscDate;// DateTime.Today;
+        objpostvoucherdisc.VDate = DiscDate;//DateTime.Today;
+        objpostvoucherdisc.DueDate = DiscDate;// DateTime.Today;
+        objpostvoucherdisc.CreatedDate = DateTime.Today;
+        objpostvoucherdisc.ModifiedDate = DateTime.Today;
+        objpostvoucherdisc.Remark = DTStudentTrans.AdmDiscountSchedule;
+        objpostvoucherdisc.VType = vtype;
+        objpostvoucherdisc.BranchID = BranchID;
+        objpostvoucherdisc.DisApplicable = true;
+        objpostvoucherdisc.RefNo = DTStudentTrans.AdmDiscountSchedule;
+        objpostvoucherdisc.AccountID = StudeAct;
+        objpostvoucherdisc.CommonNarration = Description + " Discount";
+        objpostvoucherdisc.VoucherAgainst = "Admission Discount";
+        objpostvoucherdisc.PreparedBy = DiscountSchedule;
+        objpostvoucherdisc.VATAmt = 0;
+        objpostvoucherdisc.Amount = DisAmount;
+        objpostvoucherdisc.IsCanceled = Convert.ToBoolean(0);
+        objpostvoucherdisc.Posted = Convert.ToBoolean(1);
+        objpostvoucherdisc.CreatedUserID = UserID;
+        objpostvoucherdisc.ModifiedUserID = UserID;
+        objpostvoucherdisc.ExchangeRate = 1;
+        objpostvoucherdisc.Currency = 1;
+        objpostvoucherdisc.RowState = "Insert";
+
+
+        objpostvoucherdisc.RowType = "Cr";
+        objpostvoucherdisc.Description = Description + " Discount";
+        objpostvoucherdisc.AccountID = StudeAct;
+        objpostvoucherdisc.Credit = DisAmount;
+        objpostvoucherdisc.Debit = 0;
+        objpostvoucherdisc.TranType = "Sub";
+        objpostvoucherdisc.Action = "C";
+        objpostvoucherdisc.VisibleonPrint = Convert.ToBoolean(1);
+        objpostvoucherdisc.Reconciled = Convert.ToBoolean(0);
+        objpostvoucherdisc.Active = Convert.ToBoolean(1);
+        objpostvoucherdisc.RowState = "Insert";
+        objpostvoucherdisc.VEDAccountID = Discount;
+        objpostvoucherdisc.VECAccountID = StudeAct;
+        objpostvoucherdisc.Reference = "StudentFeeDiscount";
+
+        objpostvoucherTemp.Add(objpostvoucherdisc);
+    }
+    public async Task AdmnSchedulePost_Click()
+    {
+        int discschedule = 0;
+
+        if (DTStudentTrans.AdmissionSchedule == null)
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.AdmissionSchedule == "")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.AdmissionSchedule == "None")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else
+        {
+
+            Decimal DiscountAmount = 0;
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Admission", DTStudentTrans.AdmissionSchedule));
+            if (!(feeexist == 0))
+            {
+                if (feeDiscountExist != 0)
+                {
+                    Toast[1].Content = "Fee Posting Already Exist";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+                }
+                else
+                {
+                    bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Fee Posting Already Exist! Do you want to  Discount Only?");
+                    if (confirmed)
+                    {
+                        dtsVoucher dts = new dtsVoucher();
+                        objpostvoucherTemp = new ObservableCollection<dtPostingVoucher>();
+                        FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.AdmissionSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                        DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.AdmDiscountSchedule)).ToList();
+                        foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                        {
+                            discschedule = dtd.Discount;
+                        }
+                        foreach (dtFeeSchedule dt in FeeSchedule)
+                        {
+                            possible = dt.DiscountPossible;
+                            if (DTStudentTrans.AdmDiscountSchedule != null && dt.DiscountPossible == true)
+                            {
+                                DiscountAmount = (dt.Amount * discschedule) / 100;
+                                await VoucherUpdateForAdmissionDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.AdmDiscountSchedule, dt.Discount);
+                            }
+
+                        }
+                        if ((possible != true) && (DTStudentTrans.AdmDiscountSchedule != null))
+                        {
+                            bool confirmed2 = await JsRuntime.InvokeAsync<bool>("confirm", "Discount is not possible! Do you want to Post it Without Discount?");
+                            if (confirmed2)
+                            {
+                                dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                                var itemToRemove = dts.objpostvoucherTemp.Where(r => r.Reference == null).ToList();
+                                dts.objpostvoucherTemp = dts.objpostvoucherTemp.Where(val => !(itemToRemove.Contains(val))).ToArray();
+                                HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);
+
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    PopupLoading = false;
+                                    Toast[0].Content = "Posted Successfully";
+                                    await this.ToastObj.ShowAsync(Toast[0]);
+                                    StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                    StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                                }
+                                else
+                                {
+                                    PopupLoading = false;
+                                    Toast[1].Content = "Something went wrong!";
+                                    await this.ToastObj.ShowAsync(Toast[1]);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                            var itemToRemove = dts.objpostvoucherTemp.Where(r => r.Reference == null).ToList();
+                            dts.objpostvoucherTemp = dts.objpostvoucherTemp.Where(val => !(itemToRemove.Contains(val))).ToArray();
+                            HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                PopupLoading = false;
+                                Toast[0].Content = "Posted Successfully";
+                                await this.ToastObj.ShowAsync(Toast[0]);
+                                StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                            }
+                            else
+                            {
+                                PopupLoading = false;
+                                Toast[1].Content = "Something went wrong!";
+                                await this.ToastObj.ShowAsync(Toast[1]);
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.AdmissionSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+
+                }
+                else
+                {
+                    DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.TranDiscountSchedule)).ToList();
+
+                    string AY = CmbAccYear.Substring(2, 2);
+                    foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                    {
+                        discschedule = dtd.Discount;
+                    }
+                    dtsVoucher dts = new dtsVoucher();
+                    objpostvoucherTemp.Clear();
+
+                    foreach (dtFeeSchedule dt in FeeSchedule)
+                    {
+                        Decimal totalvatamount = 0;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                            }
+                            else
+                            {
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                            }
+                        }
+
+                        dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                        objpostvoucher.EffectiveDate = dt.DueDate;
+                        objpostvoucher.VDate = dt.DueDate;
+                        objpostvoucher.DueDate = dt.DueDate;
+                        objpostvoucher.CreatedDate = DateTime.Today;
+                        objpostvoucher.ModifiedDate = DateTime.Today;
+                        objpostvoucher.Remark = DTStudentTrans.AdmissionSchedule;
+                        objpostvoucher.VType = vtype;
+                        objpostvoucher.BranchID = BranchID;
+                        objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                        objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.AccountName = null;
+                        objpostvoucher.AccountCode = null;
+                        objpostvoucher.UserTrackID = dt.Priorityno;
+                        objpostvoucher.CommonNarration = dt.Description;
+                        objpostvoucher.VoucherAgainst = "Admission";
+                        objpostvoucher.PreparedBy = dt.Code;
+                        objpostvoucher.VATAmt = totalvatamount;
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.TaxCode = dt.TAXCode;
+
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.Amount = dt.Amount;
+                            }
+                            else
+                            {
+                                objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+
+                        }
+
+                        objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                        objpostvoucher.Posted = Convert.ToBoolean(1);
+                        objpostvoucher.CreatedUserID = UserID;
+                        objpostvoucher.ModifiedUserID = UserID;
+                        objpostvoucher.ExchangeRate = 1;
+                        objpostvoucher.Currency = 1;
+                        objpostvoucher.RowState = "Insert";
+
+                        vID = 0;
+                        //ventry
+                        objpostvoucher.VID = vID;
+                        objpostvoucher.Description = dt.Description;
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                            }
+                            else
+                            {
+                                objpostvoucher.VECAmount = dt.Amount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VEDAmount = dt.Amount;
+                        objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                        objpostvoucher.SlNo = 1;
+                        if (dt.VatApplicable == true)
+                        {
+                            objpostvoucher.VatApplicable = true;
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VatInc = true;
+                            }
+                            objpostvoucher.VEVAccountID = AdvVatId;
+                            objpostvoucher.VEVAmount = totalvatamount;
+                        }
+                        objpostvoucherTemp.Add(objpostvoucher);
+                        possible = dt.DiscountPossible;
+                        if (DTStudentTrans.AdmDiscountSchedule != null && dt.DiscountPossible == true)
+                        {
+
+                            DiscountAmount = (dt.Amount * discschedule) / 100;
+                            await VoucherUpdateForAdmissionDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.TranDiscountSchedule, dt.Discount);
+
+
+                        }
+
+
+
+
+                    }
+                    if ((possible != true) && (DTStudentTrans.AdmDiscountSchedule != null))
+                    {
+                        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Discount is not possible! Do you want to Post it Without Discount?");
+                        if (confirmed)
+                        {
+                            dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                            HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                PopupLoading = false;
+                                Toast[0].Content = "Posted Successfully";
+                                await this.ToastObj.ShowAsync(Toast[0]);
+                                StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                                StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                            }
+                            else
+                            {
+                                PopupLoading = false;
+                                Toast[1].Content = "Fee Posting Already Exist";
+                                await this.ToastObj.ShowAsync(Toast[1]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                        HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PopupLoading = false;
+                            Toast[0].Content = "Posted Successfully";
+                            await this.ToastObj.ShowAsync(Toast[0]);
+                            StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                            StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                        }
+                        else
+                        {
+                            PopupLoading = false;
+                            Toast[1].Content = "Fee Posting Already Exist";
+                            await this.ToastObj.ShowAsync(Toast[1]);
+                        }
+                    }
+                }
+            }
+        }
+        //}
+    }
+    public async Task DepostAdmn_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? You want to Depost");
+        if (confirmed)
+        {
+            int feealloc = Convert.ToInt32(await FeeManager.FeeAllocChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Admission"));
+            if ((feealloc == 0))
+            {
+                dtsVoucher objdepost = new dtsVoucher();
+                dtDeleteVoucher objdeletevoucher = new dtDeleteVoucher();
+                objdeletevoucher.AccountId = Convert.ToInt32(_AccID);
+                objdeletevoucher.VType = vtype;
+                objdeletevoucher.StartDate = StatementFromDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.EndDate = StatementEndDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.Type = "Admission";
+                objdepost.objdepostvoucherTemp = objdeletevoucher;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.TransSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+
+                }
+                else
+                {
+                    HttpResponseMessage msg = await FeeManager.DeletePostingVoucher(objdepost);
+
+                    if (msg.IsSuccessStatusCode)
+                    {
+                        PopupLoading = false;
+                        Toast[0].Content = "DePosted Successfully";
+                        await this.ToastObj.ShowAsync(Toast[0]);
+                        StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                        StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                    }
+                }
+            }
+
+            else
+            {
+                Toast[1].Content = "Fee Posting Already Exist";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+
+
+    }
+    public async Task PostAll_Click()
+    {
+        if ((DTStudentTrans.FeeSchedule == null) && (DTStudentTrans.AdmissionSchedule == null) && (DTStudentTrans.TransSchedule == null) && (DTStudentTrans.OtherFee == null))
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if ((DTStudentTrans.FeeSchedule == "") && (DTStudentTrans.AdmissionSchedule == "") && (DTStudentTrans.TransSchedule == "") && (DTStudentTrans.OtherFee == ""))
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        //else if (DTStudentTrans.FeeSchedule == "None")
+        //{
+        //    Toast[1].Content = "Please Select Fee Schedule";
+        //    await this.ToastObj.ShowAsync(Toast[1]);
+        //}
+        else
+        {
+
+            decimal totalscheduleamount = 0;
+            int discschedule = 0;
+            foreach (dtFeeSchedule dt in FeeSchedule)
+            {
+                if (dt.DiscountPossible == true)
+                {
+                    totalscheduleamount = totalscheduleamount + dt.Amount;
+
+                }
+            }
+
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "All", ""));
+            if (!(feeexist == 0))
+            {
+                Toast[1].Content = "Fee Posting Already Exist";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.FeeSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+
+                }
+                else
+                {
+                    DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.DiscountSchedule)).ToList();
+
+                    string AY = CmbAccYear.Substring(2, 2);
+                    foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                    {
+                        discschedule = dtd.Discount;
+                    }
+
+                    dtsVoucher dts = new dtsVoucher();
+                    objpostvoucherTemp.Clear();
+
+                    foreach (dtFeeSchedule dt in FeeSchedule)
+                    {
+                        Decimal totalvatamount = 0;
+                        Decimal DiscountAmount = 0;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                            }
+                            else
+                            {
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                            }
+                        }
+
+                        dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                        objpostvoucher.EffectiveDate = dt.DueDate;
+                        objpostvoucher.VDate = dt.DueDate;
+                        objpostvoucher.DueDate = dt.DueDate;
+                        objpostvoucher.CreatedDate = DateTime.Today;
+                        objpostvoucher.ModifiedDate = DateTime.Today;
+                        objpostvoucher.Remark = DTStudentTrans.FeeSchedule;
+                        objpostvoucher.VType = vtype;
+                        objpostvoucher.BranchID = BranchID;
+                        objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                        objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.AccountName = null;
+                        objpostvoucher.AccountCode = null;
+                        objpostvoucher.UserTrackID = dt.Priorityno;
+                        objpostvoucher.CommonNarration = dt.Description;
+                        objpostvoucher.VoucherAgainst = "FEE";
+                        objpostvoucher.PreparedBy = dt.Code;
+                        objpostvoucher.VATAmt = totalvatamount;
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.TaxCode = dt.TAXCode;
+
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.Amount = dt.Amount;
+                            }
+                            else
+                            {
+                                objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+
+                        }
+
+                        objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                        objpostvoucher.Posted = Convert.ToBoolean(1);
+                        objpostvoucher.CreatedUserID = UserID;
+                        objpostvoucher.ModifiedUserID = UserID;
+                        objpostvoucher.ExchangeRate = 1;
+                        objpostvoucher.Currency = 1;
+                        objpostvoucher.RowState = "Insert";
+
+                        vID = 0;
+                        //ventry
+                        objpostvoucher.VID = vID;
+                        objpostvoucher.Description = dt.Description;
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                            }
+                            else
+                            {
+                                objpostvoucher.VECAmount = dt.Amount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VEDAmount = dt.Amount;
+                        objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                        objpostvoucher.SlNo = 1;
+                        if (dt.VatApplicable == true)
+                        {
+                            objpostvoucher.VatApplicable = true;
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VatInc = true;
+                            }
+                            objpostvoucher.VEVAccountID = AdvVatId;
+                            objpostvoucher.VEVAmount = totalvatamount;
+                        }
+                        objpostvoucherTemp.Add(objpostvoucher);
+
+                        if (DTStudentTrans.DiscountSchedule != null && dt.DiscountPossible == true)
+                        {
+
+                            DiscountAmount = (dt.Amount * discschedule) / 100;
+                            await VoucherUpdateForDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.DiscountSchedule, dt.Discount);
+
+
+                        }
+
+
+                        //await _IPostingManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                        //int slno = 1;
+
+                        //await GetUniqueAccounts();
+
+
+                    }
+                    await StudentTransSchedulePost();
+                    await StudentAdmnSchedulePost();
+                    await StudentOtherSchedulePost();
+
+                    dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                    HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        PopupLoading = false;
+                        Toast[0].Content = "Posted Successfully";
+                        await this.ToastObj.ShowAsync(Toast[0]);
+                        StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                        StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                    }
+                    else
+                    {
+                        PopupLoading = false;
+                        Toast[1].Content = "Fee Posting Already Exist";
+                        await this.ToastObj.ShowAsync(Toast[1]);
+                    }
+                }
+            }
+            // }
+        }
+    }
+    public async Task DepostAll_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? You want to Depost");
+        if (confirmed)
+        {
+            int feealloc = Convert.ToInt32(await FeeManager.FeeAllocChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "All"));
+            if ((feealloc == 0))
+            {
+                dtsVoucher objdepost = new dtsVoucher();
+                dtDeleteVoucher objdeletevoucher = new dtDeleteVoucher();
+                objdeletevoucher.AccountId = Convert.ToInt32(_AccID);
+                objdeletevoucher.VType = vtype;
+                objdeletevoucher.StartDate = StatementFromDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.EndDate = StatementEndDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.Type = "All";
+                objdepost.objdepostvoucherTemp = objdeletevoucher;
+                if ((DTStudentTrans.FeeSchedule != null) &&
+                (DTStudentTrans.FeeSchedule != "") &&
+                (DTStudentTrans.AdmissionSchedule != null) && (DTStudentTrans.AdmissionSchedule != "")
+                && (DTStudentTrans.TransSchedule != null) && (DTStudentTrans.TransSchedule != ""))
+                {
+                    FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.FeeSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                    if (FeeSchedule.Count == 0)
+                    {
+                        Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                        await this.ToastObj.ShowAsync(Toast[1]);
+
+                    }
+                    else
+                    {
+                        HttpResponseMessage msg = await FeeManager.DeletePostingVoucher(objdepost);
+                        if (msg.IsSuccessStatusCode)
+                        {
+                            PopupLoading = false;
+                            Toast[0].Content = "DePosted Successfully";
+                            await this.ToastObj.ShowAsync(Toast[0]);
+                            StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                            StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                        }
+                    }
+                }
+                else
+                {
+                    Toast[1].Content = "select Fee Schedule";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+                }
+            }
+
+            else
+            {
+                Toast[1].Content = "Fee Posting Already Exist";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+    }
+    public async Task StudentTransSchedulePost()
+    {
+        if (DTStudentTrans.TransSchedule == null)
+        {
+
+        }
+        else if (DTStudentTrans.TransSchedule == "")
+        {
+
+        }
+        else if (DTStudentTrans.TransSchedule == "None")
+        {
+
+        }
+        else
+        {
+            decimal totalscheduleamount = 0;
+            int discschedule = 0;
+            foreach (dtFeeSchedule dt in FeeSchedule)
+            {
+                if (dt.DiscountPossible == true)
+                {
+                    totalscheduleamount = totalscheduleamount + dt.Amount;
+
+                }
+            }
+
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Transportation", DTStudentTrans.TransSchedule));
+            if (!(feeexist == 0))
+            {
+
+            }
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.TransSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.TranDiscountSchedule)).ToList();
+
+                string AY = CmbAccYear.Substring(2, 2);
+                foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                {
+                    discschedule = dtd.Discount;
+                }
+
+                foreach (dtFeeSchedule dt in FeeSchedule)
+                {
+                    Decimal totalvatamount = 0;
+                    Decimal DiscountAmount = 0;
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+
+                            totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                        }
+                        else
+                        {
+                            totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                        }
+                    }
+
+                    dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                    objpostvoucher.EffectiveDate = dt.DueDate;
+                    objpostvoucher.VDate = dt.DueDate;
+                    objpostvoucher.DueDate = dt.DueDate;
+                    objpostvoucher.CreatedDate = DateTime.Today;
+                    objpostvoucher.ModifiedDate = DateTime.Today;
+                    objpostvoucher.Remark = DTStudentTrans.TransSchedule;
+                    objpostvoucher.VType = vtype;
+                    objpostvoucher.BranchID = BranchID;
+                    objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                    objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.AccountName = null;
+                    objpostvoucher.AccountCode = null;
+                    objpostvoucher.UserTrackID = dt.Priorityno;
+                    objpostvoucher.CommonNarration = dt.Description;
+                    objpostvoucher.VoucherAgainst = "Transportation";
+                    objpostvoucher.PreparedBy = dt.Code;
+                    objpostvoucher.VATAmt = totalvatamount;
+                    objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.VECAccountID = dt.PostTo;
+                    objpostvoucher.VEVAccountID = AdvVatId;
+                    objpostvoucher.TaxCode = dt.TAXCode;
+
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                        }
+                    }
+                    else
+                    {
+                        objpostvoucher.Amount = dt.Amount;
+
+                    }
+
+                    objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                    objpostvoucher.Posted = Convert.ToBoolean(1);
+                    objpostvoucher.CreatedUserID = UserID;
+                    objpostvoucher.ModifiedUserID = UserID;
+                    objpostvoucher.ExchangeRate = 1;
+                    objpostvoucher.Currency = 1;
+                    objpostvoucher.RowState = "Insert";
+
+                    vID = 0;
+                    //ventry
+                    objpostvoucher.VID = vID;
+                    objpostvoucher.Description = dt.Description;
+                    objpostvoucher.VECAccountID = dt.PostTo;
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                    }
+                    else
+                    {
+                        objpostvoucher.VECAmount = dt.Amount;
+
+                    }
+                    objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.VEDAmount = dt.Amount;
+                    objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                    objpostvoucher.SlNo = 1;
+                    if (dt.VatApplicable == true)
+                    {
+                        objpostvoucher.VatApplicable = true;
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.VatInc = true;
+                        }
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.VEVAmount = totalvatamount;
+                    }
+                    objpostvoucherTemp.Add(objpostvoucher);
+
+                    if (DTStudentTrans.TranDiscountSchedule != null && dt.DiscountPossible == true)
+                    {
+
+                        DiscountAmount = (dt.Amount * discschedule) / 100;
+                        await VoucherUpdateForTranDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.TranDiscountSchedule, dt.Discount);
+
+
+                    }
+
+
+
+                }
+
+            }
+        }
+
+
+
+    }
+    public async Task StudentOtherSchedulePost()
+    {
+        if (DTStudentTrans.OtherFee == null)
+        {
+
+        }
+        else if (DTStudentTrans.OtherFee == "")
+        {
+
+        }
+        else if (DTStudentTrans.OtherFee == "None")
+        {
+
+        }
+        else
+        {
+            decimal totalscheduleamount = 0;
+            int discschedule = 0;
+            foreach (dtFeeSchedule dt in FeeSchedule)
+            {
+                if (dt.DiscountPossible == true)
+                {
+                    totalscheduleamount = totalscheduleamount + dt.Amount;
+
+                }
+            }
+
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), DTStudentTrans.OtherFee, DTStudentTrans.OtherFee));
+            if (!(feeexist == 0))
+            {
+
+            }
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.OtherFee, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+
+                string AY = CmbAccYear.Substring(2, 2);
+
+
+                foreach (dtFeeSchedule dt in FeeSchedule)
+                {
+                    Decimal totalvatamount = 0;
+                    Decimal DiscountAmount = 0;
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+
+                            totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                        }
+                        else
+                        {
+                            totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                        }
+                    }
+
+                    dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                    objpostvoucher.EffectiveDate = dt.DueDate;
+                    objpostvoucher.VDate = dt.DueDate;
+                    objpostvoucher.DueDate = dt.DueDate;
+                    objpostvoucher.CreatedDate = DateTime.Today;
+                    objpostvoucher.ModifiedDate = DateTime.Today;
+                    objpostvoucher.Remark = DTStudentTrans.OtherFee;
+                    objpostvoucher.VType = vtype;
+                    objpostvoucher.BranchID = BranchID;
+                    objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                    objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.AccountName = null;
+                    objpostvoucher.AccountCode = null;
+                    objpostvoucher.UserTrackID = dt.Priorityno;
+                    objpostvoucher.CommonNarration = dt.Description;
+                    objpostvoucher.VoucherAgainst = DTStudentTrans.OtherFee;
+                    objpostvoucher.PreparedBy = dt.Code;
+                    objpostvoucher.VATAmt = totalvatamount;
+                    objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.VECAccountID = dt.PostTo;
+                    objpostvoucher.VEVAccountID = AdvVatId;
+                    objpostvoucher.TaxCode = dt.TAXCode;
+
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                        }
+                    }
+                    else
+                    {
+                        objpostvoucher.Amount = dt.Amount;
+
+                    }
+
+                    objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                    objpostvoucher.Posted = Convert.ToBoolean(1);
+                    objpostvoucher.CreatedUserID = UserID;
+                    objpostvoucher.ModifiedUserID = UserID;
+                    objpostvoucher.ExchangeRate = 1;
+                    objpostvoucher.Currency = 1;
+                    objpostvoucher.RowState = "Insert";
+
+                    vID = 0;
+                    //ventry
+                    objpostvoucher.VID = vID;
+                    objpostvoucher.Description = dt.Description;
+                    objpostvoucher.VECAccountID = dt.PostTo;
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                    }
+                    else
+                    {
+                        objpostvoucher.VECAmount = dt.Amount;
+
+                    }
+                    objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.VEDAmount = dt.Amount;
+                    objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                    objpostvoucher.SlNo = 1;
+                    if (dt.VatApplicable == true)
+                    {
+                        objpostvoucher.VatApplicable = true;
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.VatInc = true;
+                        }
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.VEVAmount = totalvatamount;
+                    }
+                    objpostvoucherTemp.Add(objpostvoucher);
+
+
+
+
+
+                }
+
+            }
+        }
+
+
+
+    }
+    public async Task StudentAdmnSchedulePost()
+    {
+        int discschedule = 0;
+        if (DTStudentTrans.AdmissionSchedule == null)
+        {
+
+        }
+        else if (DTStudentTrans.AdmissionSchedule == "")
+        {
+
+        }
+        else if (DTStudentTrans.AdmissionSchedule == "None")
+        {
+
+        }
+        else
+        {
+
+
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Admission", DTStudentTrans.AdmissionSchedule));
+            if (!(feeexist == 0))
+            {
+
+            }
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.AdmissionSchedule, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+
+                DiscountScheduleName = (await FeeManager.GetDiscountSchedule(BranchID, DTStudentTrans.TranDiscountSchedule)).ToList();
+
+                string AY = CmbAccYear.Substring(2, 2);
+                foreach (dtDiscountSchedule dtd in DiscountScheduleName)
+                {
+                    discschedule = dtd.Discount;
+                }
+
+                foreach (dtFeeSchedule dt in FeeSchedule)
+                {
+                    Decimal totalvatamount = 0;
+                    Decimal DiscountAmount = 0;
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+
+                            totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                        }
+                        else
+                        {
+                            totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                        }
+                    }
+
+                    dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                    objpostvoucher.EffectiveDate = dt.DueDate;
+                    objpostvoucher.VDate = dt.DueDate;
+                    objpostvoucher.DueDate = dt.DueDate;
+                    objpostvoucher.CreatedDate = DateTime.Today;
+                    objpostvoucher.ModifiedDate = DateTime.Today;
+                    objpostvoucher.Remark = DTStudentTrans.AdmissionSchedule;
+                    objpostvoucher.VType = vtype;
+                    objpostvoucher.BranchID = BranchID;
+                    objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                    objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.AccountName = null;
+                    objpostvoucher.AccountCode = null;
+                    objpostvoucher.UserTrackID = dt.Priorityno;
+                    objpostvoucher.CommonNarration = dt.Description;
+                    objpostvoucher.VoucherAgainst = "Admission";
+                    objpostvoucher.PreparedBy = dt.Code;
+                    objpostvoucher.VATAmt = totalvatamount;
+                    objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.VECAccountID = dt.PostTo;
+                    objpostvoucher.VEVAccountID = AdvVatId;
+                    objpostvoucher.TaxCode = dt.TAXCode;
+
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                        }
+                    }
+                    else
+                    {
+                        objpostvoucher.Amount = dt.Amount;
+
+                    }
+
+                    objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                    objpostvoucher.Posted = Convert.ToBoolean(1);
+                    objpostvoucher.CreatedUserID = UserID;
+                    objpostvoucher.ModifiedUserID = UserID;
+                    objpostvoucher.ExchangeRate = 1;
+                    objpostvoucher.Currency = 1;
+                    objpostvoucher.RowState = "Insert";
+
+                    vID = 0;
+                    //ventry
+                    objpostvoucher.VID = vID;
+                    objpostvoucher.Description = dt.Description;
+                    objpostvoucher.VECAccountID = dt.PostTo;
+                    if (dt.VatApplicable == true)
+                    {
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                    }
+                    else
+                    {
+                        objpostvoucher.VECAmount = dt.Amount;
+
+                    }
+                    objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                    objpostvoucher.VEDAmount = dt.Amount;
+                    objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                    objpostvoucher.SlNo = 1;
+                    if (dt.VatApplicable == true)
+                    {
+                        objpostvoucher.VatApplicable = true;
+                        if (dt.VatInclusive == true)
+                        {
+                            objpostvoucher.VatInc = true;
+                        }
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.VEVAmount = totalvatamount;
+                    }
+                    objpostvoucherTemp.Add(objpostvoucher);
+                    if (DTStudentTrans.TranDiscountSchedule != null && dt.DiscountPossible == true)
+                    {
+
+                        DiscountAmount = (dt.Amount * discschedule) / 100;
+                        await VoucherUpdateForAdmissionDiscount(Convert.ToInt32(_AccID), dt.DueDate, vtype, DiscountAmount, dt.Description, DTStudentTrans.TranDiscountSchedule, dt.Discount);
+
+
+                    }
+
+
+                }
+
+            }
+
+            //}
+        }
+    }
+    public async Task Go_Click()
+    {
+        DateTime SDate = Convert.ToDateTime(StudStatement.StartDate.ToString());
+        DateTime EDate = Convert.ToDateTime(StudStatement.EndDate.ToString());
+
+        StudStatementlist = (await FeeManager.GetStatement(BranchID, Convert.ToInt32(_AccID), SDate.ToString("MM/dd/yyyy"), EDate.ToString("MM/dd/yyyy"))).ToList();
+        var itemToRemove = StudStatementlist.SingleOrDefault(r => r.EffectiveDate == null);
+        StudStatementlist.Remove(itemToRemove);
+    }
+    private async Task ValidateStudentEmail()
+    {
+        string email = student.Email;
+        if ((student.Email != null) && (student.Email != ""))
+        {
+            Regex regex = new Regex(@"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?");
+            Match match = regex.Match(email);
+            if (match.Success)
+            { }
+
+            else
+            {
+                Toast[1].Content = "Invalid Email";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+
+
+        InvokeAsync(StateHasChanged);
+    }
+    private async Task ValidateStudentOtherEmail()
+    {
+        string email = student.P_Email;
+        if (student.P_Email != null)
+        {
+            Regex regex = new Regex(@"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?");
+            Match match = regex.Match(email);
+            if (match.Success)
+            {
+
+            }
+
+            else
+            {
+                Toast[1].Content = "Invalid Email";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+    public async Task SaveStatus()
+    {
+        String Url = NavigationManager.BaseUri + "StatusMaster/" + _AccID;
+        await JsRuntime.InvokeAsync<object>("open", Url, "_blank");
+
+
+    }
+    public async Task OtherFeePost_Click()
+    {
+        if (DTStudentTrans.OtherFee == null)
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.OtherFee == "")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else if (DTStudentTrans.OtherFee == "None")
+        {
+            Toast[1].Content = "Please Select Fee Schedule";
+            await this.ToastObj.ShowAsync(Toast[1]);
+        }
+        else
+        {
+
+            decimal totalscheduleamount = 0;
+            foreach (dtFeeSchedule dt in FeeSchedule)
+            {
+                if (dt.DiscountPossible == true)
+                {
+                    totalscheduleamount = totalscheduleamount + dt.Amount;
+
+                }
+            }
+
+            feeexist = Convert.ToInt32(await FeeManager.FeePostChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), DTStudentTrans.OtherFee, DTStudentTrans.OtherFee));
+            if (!(feeexist == 0))
+            {
+                Toast[1].Content = "Fee Posting Already Exist";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+
+            else
+            {
+                PopupLoading = true;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.OtherFee, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+                }
+                else
+                {
+
+                    string AY = CmbAccYear.Substring(2, 2);
+
+
+                    dtsVoucher dts = new dtsVoucher();
+                    objpostvoucherTemp.Clear();
+
+                    foreach (dtFeeSchedule dt in FeeSchedule)
+                    {
+                        Decimal totalvatamount = 0;
+                        Decimal DiscountAmount = 0;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 105);
+                            }
+                            else
+                            {
+                                totalvatamount = ((dt.Amount * dt.VatPercent) / 100);
+
+                            }
+                        }
+
+                        dtPostingVoucher objpostvoucher = new dtPostingVoucher();
+                        objpostvoucher.EffectiveDate = dt.DueDate;
+                        objpostvoucher.VDate = dt.DueDate;
+                        objpostvoucher.DueDate = dt.DueDate;
+                        objpostvoucher.CreatedDate = DateTime.Today;
+                        objpostvoucher.ModifiedDate = DateTime.Today;
+                        objpostvoucher.Remark = DTStudentTrans.OtherFee;
+                        objpostvoucher.VType = vtype;
+                        objpostvoucher.BranchID = BranchID;
+                        objpostvoucher.RefNo = "FEE" + AY + Convert.ToInt32(_AccID).ToString();
+                        objpostvoucher.AccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.AccountName = null;
+                        objpostvoucher.AccountCode = null;
+                        objpostvoucher.UserTrackID = dt.Priorityno;
+                        objpostvoucher.CommonNarration = dt.Description;
+                        objpostvoucher.VoucherAgainst = DTStudentTrans.OtherFee;
+                        objpostvoucher.PreparedBy = dt.Code;
+                        objpostvoucher.VATAmt = totalvatamount;
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        objpostvoucher.VEVAccountID = AdvVatId;
+                        objpostvoucher.TaxCode = dt.TAXCode;
+
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.Amount = dt.Amount;
+                            }
+                            else
+                            {
+                                objpostvoucher.Amount = dt.Amount + totalvatamount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.Amount = dt.Amount;
+
+                        }
+
+                        objpostvoucher.IsCanceled = Convert.ToBoolean(0);
+                        objpostvoucher.Posted = Convert.ToBoolean(1);
+                        objpostvoucher.CreatedUserID = UserID;
+                        objpostvoucher.ModifiedUserID = UserID;
+                        objpostvoucher.ExchangeRate = 1;
+                        objpostvoucher.Currency = 1;
+                        objpostvoucher.RowState = "Insert";
+
+                        vID = 0;
+                        //ventry
+                        objpostvoucher.VID = vID;
+                        objpostvoucher.Description = dt.Description;
+                        objpostvoucher.VECAccountID = dt.PostTo;
+                        if (dt.VatApplicable == true)
+                        {
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VECAmount = dt.Amount - totalvatamount;
+                            }
+                            else
+                            {
+                                objpostvoucher.VECAmount = dt.Amount;
+
+                            }
+                        }
+                        else
+                        {
+                            objpostvoucher.VECAmount = dt.Amount;
+
+                        }
+                        objpostvoucher.VEDAccountID = Convert.ToInt32(_AccID);
+                        objpostvoucher.VEDAmount = dt.Amount;
+                        objpostvoucher.DocSubNo = dt.VatPercent.ToString();
+                        objpostvoucher.SlNo = 1;
+                        if (dt.VatApplicable == true)
+                        {
+                            objpostvoucher.VatApplicable = true;
+                            if (dt.VatInclusive == true)
+                            {
+                                objpostvoucher.VatInc = true;
+                            }
+                            objpostvoucher.VEVAccountID = AdvVatId;
+                            objpostvoucher.VEVAmount = totalvatamount;
+                        }
+                        objpostvoucherTemp.Add(objpostvoucher);
+
+
+                    }
+                    dts.objpostvoucherTemp = objpostvoucherTemp.ToList().ToArray();
+                    HttpResponseMessage response = await FeeManager.CreatePostingVoucher(dts);//await Http.PostAsJsonAsync("api/Inventory", dts);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        PopupLoading = false;
+                        Toast[0].Content = "Posted Successfully";
+                        await this.ToastObj.ShowAsync(Toast[0]);
+                        StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                        StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                    }
+                    else
+                    {
+                        PopupLoading = false;
+                        Toast[1].Content = "Fee Posting Already Exist";
+                        await this.ToastObj.ShowAsync(Toast[1]);
+                    }
+                }
+            }
+        }
+    }
+
+    public async Task DepostOtherFee_Click()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure? You want to Depost");
+        if (confirmed)
+        {
+            int feealloc = Convert.ToInt32(await FeeManager.FeeAllocChecking(Convert.ToInt32(_AccID), vtype, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), DTStudentTrans.OtherFee));
+            if ((feealloc == 0))
+            {
+                dtsVoucher objdepost = new dtsVoucher();
+                dtDeleteVoucher objdeletevoucher = new dtDeleteVoucher();
+                objdeletevoucher.AccountId = Convert.ToInt32(_AccID);
+                objdeletevoucher.VType = vtype;
+                objdeletevoucher.StartDate = StatementFromDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.EndDate = StatementEndDate.ToString("MM/dd/yyyy");
+                objdeletevoucher.Type = DTStudentTrans.OtherFee;
+                objdepost.objdepostvoucherTemp = objdeletevoucher;
+                FeeSchedule = (await FeeManager.GetFeeSchedule(CmbAccYear, BranchID, DTStudentTrans.OtherFee, StatementFromDate.ToString("MM/dd/yyyy"), StatementEndDate.ToString("MM/dd/yyyy"), "Fee")).ToList();
+                if (FeeSchedule.Count == 0)
+                {
+                    Toast[1].Content = "There is no FeeSchedule Within this Date Range";
+                    await this.ToastObj.ShowAsync(Toast[1]);
+
+                }
+                else
+                {
+                    HttpResponseMessage msg = await FeeManager.DeletePostingVoucher(objdepost);
+                    if (msg.IsSuccessStatusCode)
+                    {
+                        PopupLoading = false;
+                        Toast[0].Content = "DePosted Successfully";
+                        await this.ToastObj.ShowAsync(Toast[0]);
+                        StudFeeSummary = (await FeeManager.GetFeeSummary(Convert.ToInt32(_AccID), BranchID, CmbAccYear));
+                        StudFeeDetails = (await FeeManager.GetFeeDetails(Convert.ToInt32(_AccID), BranchID, CmbAccYear)).ToList();
+
+                    }
+                }
+            }
+
+            else
+            {
+                Toast[1].Content = "Fee Posting Already Exist";
+                await this.ToastObj.ShowAsync(Toast[1]);
+            }
+        }
+    }
+
+    public async Task BtnSearch_Click()
+    {
+        popSearch = true;
+        StudentList = (await StudentsService.GetStudentsDefault(CmbAccYear!, BranchID, Category, UserID))!.ToList();
+
+        
+        //await InvokeAsync(StateHasChanged);
+        //await Task.Yield();
+    }
+   
+    void TabSelecting(SelectingEventArgs args)
+    {
+        if (args.SelectingIndex == 5)
+        {
+            // String AccID = ID.ToString();
+            NavigationManager.NavigateTo(NavigationManager.BaseUri + "FeePost/" + _AccID);
+        }
+    }
+    public void CreatedHandler(object args)
+    {
+        //gv_studentList.SelectRowAsync(0,true);
+        gv_studentList.FocusAsync();
+        // Here, you can customize your code.
+    }
+    public async Task RowSelectingHandler(RowSelectingEventArgs<dtoStudentRegisterDefault> args)
+    {
+        _AccID = (args.Data.AccountID).ToString();
+        await LoadData();
+        popSearch = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task OnInput(InputEventArgs args)
+    {
+        if (args.Value.Length >= 3)
+        {
+            //StudentList = StudentListSearch;
+            this.gv_studentList.SearchAsync(args.Value);
+            //gv_studentList.FocusAsync();
+        }
+    }
+    public void onCreateSearch()
+    {
+        this.search.AddIconAsync("append", "e-upload-picture");
+        //gv_studentList.FocusAsync();
+        //gv_studentList.SelectRowAsync(0, true);
+    }
+    public async Task<double> GetRowCounter(int? val)
+    {
+        var index = await gv_studentList.GetRowIndexByPrimaryKeyAsync(val);
+        var currentPage = gv_studentList.PageSettings.CurrentPage;
+        if (gv_studentList.AllowPaging && currentPage > 1)
+        {
+            index = (((currentPage - 1) * gv_studentList.PageSettings.PageSize) + index);
+        }
+        return index + 1;
+
+    }
+}
+
+
+
